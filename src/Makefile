@@ -4,8 +4,6 @@ CROSS_PREFIX := arm-none-eabi
 ARCH := arm
 BSP := stm32
 
-.EXPORT_ALL_VARIABLES:
-
 SUBDIRS = bsp kernel 
 
 .PHONY all: $(SUBDIRS)
@@ -14,4 +12,4 @@ SUBDIRS = bsp kernel
 
 .PHONY: $(SUBDIRS)
 $(SUBDIRS):
-	@$(MAKE) -s -C $@ ARCH=$(ARCH) BSP=$(BSP) $(MAKECMDGOALS) 
+	@$(MAKE) -s -C $@ CROSS_PREFIX=$(CROSS_PREFIX) PROJECT_ROOT=$(PROJECT_ROOT) ARCH=$(ARCH) BSP=$(BSP) $(MAKECMDGOALS) 
