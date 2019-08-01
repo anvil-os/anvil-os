@@ -11,4 +11,4 @@ LIBRARY := libbsp.a
 MODULE_CFLAGS += -static 
 INSTALLDIR := /lib
 
-include $(BUILDROOT)/default.mk
+include $(PROJECT_ROOT)/make/default.mk

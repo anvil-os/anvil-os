@@ -1,0 +1,17 @@
+
+PROJECT_ROOT := $(CURDIR)
+CROSS_PREFIX := arm-none-eabi
+ARCH := arm
+BSP := stm32
+
+.EXPORT_ALL_VARIABLES:
+
+SUBDIRS = bsp kernel 
+
+.PHONY all: $(SUBDIRS)
+
+.PHONY clean: $(SUBDIRS)
+
+.PHONY: $(SUBDIRS)
+$(SUBDIRS):
+	@$(MAKE) -s -C $@ ARCH=$(ARCH) BSP=$(BSP) $(MAKECMDGOALS) 
