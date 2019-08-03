@@ -39,6 +39,8 @@ static inline void outportb(int port, char value)
 
 int debug_init()
 {
+	int i;
+
     /* Set up baud rate to 115200 - 0x00 0x01 */
     /* Set DLAB (DIV latch) */
     char c = inportb(LCR);
@@ -53,6 +55,13 @@ int debug_init()
 
     /* Disable all interrupts */
     outportb(IER, 0x0);
+
+	debug_putc('\n');
+    for (i=0; i<79; ++i)
+    {
+    	debug_putc('-');
+    }
+	debug_putc('\n');
 }
 
 void debug_putc(int c)
