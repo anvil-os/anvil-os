@@ -1,6 +1,5 @@
 
 #include "debug.h"
-#include "stm32f10x.h"
 
 extern char __etext__;
 extern char __sdata__;
@@ -9,6 +8,7 @@ extern char __sbss__;
 extern char __ebss__;
 
 int main();
+void SystemInit();
 
 void start()
 {
