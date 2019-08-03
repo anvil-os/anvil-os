@@ -40,10 +40,10 @@ AS := $(CROSS_PREFIX)-gcc
 STRIP := $(CROSS_PREFIX)-strip
 SIZE := $(CROSS_PREFIX)-size
 
-GLOBAL_CFLAGS := -std=c99 -fgnu89-inline -mcpu=cortex-m3 -mthumb -fno-exceptions
-GLOBAL_CXXFLAGS := -mcpu=cortex-m3 -mthumb -fno-exceptions -fno-rtti
-GLOBAL_CPPFLAGS := -g -Os -DUSE_STDPERIPH_DRIVER
-GLOBAL_LDFLAGS := -g -mcpu=cortex-m3 -mthumb -fno-exceptions -fno-rtti -nostdlib
+#GLOBAL_CFLAGS := -std=c99 -fgnu89-inline -mcpu=cortex-m3 -mthumb -fno-exceptions
+#GLOBAL_CXXFLAGS := -mcpu=cortex-m3 -mthumb -fno-exceptions -fno-rtti
+#GLOBAL_CPPFLAGS := -g -Os -DUSE_STDPERIPH_DRIVER
+#GLOBAL_LDFLAGS := -g -mcpu=cortex-m3 -mthumb -fno-exceptions -fno-rtti -nostdlib
 			
 ALL_CFLAGS   := $(GLOBAL_CFLAGS)   $(GLOBAL_CPPFLAGS) $(MODULE_CFLAGS)   $(MODULE_CPPFLAGS) $(CFLAGS)   $(CPPFLAGS) -I$(SRCDIR)/$(ARCH) -I$(SRCDIR)
 ALL_CXXFLAGS := $(GLOBAL_CXXFLAGS) $(GLOBAL_CPPFLAGS) $(MODULE_CXXFLAGS) $(MODULE_CPPFLAGS) $(CXXFLAGS) $(CPPFLAGS) -I$(SRCDIR)/$(ARCH) -I$(SRCDIR)

@@ -1,2 +1,2 @@
-# anvil-os
-A standards confirming embedded kernel
+# Anvil-OS
+A standards conforming embedded kernel

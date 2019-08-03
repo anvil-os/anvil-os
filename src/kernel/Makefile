@@ -11,7 +11,7 @@ MODULE_LDFLAGS := \
     -fno-exceptions \
     -fno-unwind-tables \
     -fno-asynchronous-unwind-tables \
-    -T $(SRCDIR)/gcc_arm.ld \
+    -T $(SRCDIR)/$(ARCH)/gcc_arm.ld \
     -ffunction-sections \
     -fdata-sections \
     -ffreestanding \
