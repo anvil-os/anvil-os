@@ -1,20 +1,20 @@
 
 #include <stddef.h>
 
+#include "../libc/inc/string.h"
+
 #include "test_harness.h"
 
 TEST_GROUP(string)
 
-TEST(string, fake)
+TEST(string, memcmp)
 {
-	ASSERT_EQ(1, 1);
-
-	END_TEST(string);
+    END_TEST(string);
 }
 
 int string_test()
 {
-	CALL_TEST(string, fake);
+    CALL_TEST(string, memcmp);
 
-	END_TEST_GROUP(string);
+    END_TEST_GROUP(string);
 }

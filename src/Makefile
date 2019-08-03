@@ -1,7 +1,7 @@
 
 PROJECT_ROOT := $(CURDIR)
 
-SUBDIRS = bsp kernel 
+SUBDIRS = bsp libc kernel
 
 #ifeq ($(wildcard target.mk),)
 #$(warning "*** ERROR: target not specified")

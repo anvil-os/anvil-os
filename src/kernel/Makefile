@@ -1,7 +1,7 @@
 
 BINARY := anvil
 
-LIBS := ../bsp/libbsp.a
+LIBS := ../bsp/libbsp.a ../libc/libc.a
 
 MODULE_LDFLAGS := \
     -L../bsp/ \
