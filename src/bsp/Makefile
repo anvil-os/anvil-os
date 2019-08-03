@@ -1,6 +1,6 @@
 
 ifneq ($(SRCDIR),)
-include $(SRCDIR)/$(BSP)/Makefile 
+include $(SRCDIR)/$(BSP)/bsp.mk 
 endif
 
 MODULE_CPPFLAGS := $(BSP_CFLAGS) $(BSP_INCLUDE_PATHS)
