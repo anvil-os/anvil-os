@@ -37,8 +37,8 @@ void start()
     main();
 }
 
-void *const __attribute__((section(".vector_tbl"))) vector_table[] =
+void __attribute__((section(".vector_tbl"))) (*(vector_table[]))() =
 {
-    (void *)(0x20000000+8192),
-    (void *)start,
+    (void (*)())(0x20000000+8192),
+    start,
 };

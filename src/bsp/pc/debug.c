@@ -62,6 +62,8 @@ int debug_init()
     	debug_putc('-');
     }
 	debug_putc('\n');
+
+	return 0;
 }
 
 void debug_putc(int c)
