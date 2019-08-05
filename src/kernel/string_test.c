@@ -148,11 +148,69 @@ TEST(string, memcpy)
     END_TEST(string);
 }
 
+TEST(string, memmove)
+{
+    /* MEMMOVE */
+    const char orig_chars[] = "abcdefghij1234567rstuvwxyz";
+    char chars[26];
+    /* DEST goes from chars 10 to 16 inclusive. i.e. the digits */
+
+    /* Call memmove thru a pointer so that gcc doesn't optimise the call away */
+    void *(* volatile p_memmove)(void *s1, const void *s2, size_t n) = memmove;
+
+    /*
+     * First try a zero length memmove. We choose the case where
+     * SRC (7 to 13 inclusive) begins before DEST and ends within DEST
+     * because that's the one that usually fails if memcpy is used
+     */
+    memcpy(chars, orig_chars, 26);
+    ASSERT_EQ(chars + 10, p_memmove(chars + 10, chars + 7, 0));
+    ASSERT_EQ(0, memcmp(chars, orig_chars, 26));
+
+    /* SRC (2 to 8 inclusive) begins before DEST and ends before DEST */
+    memcpy(chars, orig_chars, 26);
+    ASSERT_EQ(chars + 10, p_memmove(chars + 10, chars + 2, 7));
+    ASSERT_EQ(0, memcmp(chars, "abcdefghijcdefghirstuvwxyz", 26));
+
+    /* SRC (3 to 9 inclusive) begins before DEST and ends at beginning of DEST */
+    memcpy(chars, orig_chars, 26);
+    ASSERT_EQ(chars + 10, p_memmove(chars + 10, chars + 3, 7));
+    ASSERT_EQ(0, memcmp(chars, "abcdefghijdefghijrstuvwxyz", 26));
+
+    /* SRC (7 to 13 inclusive) begins before DEST and ends within DEST */
+    memcpy(chars, orig_chars, 26);
+    ASSERT_EQ(chars + 10, p_memmove(chars + 10, chars + 7, 7));
+    ASSERT_EQ(0, memcmp(chars, "abcdefghijhij1234rstuvwxyz", 26));
+
+    /* SRC (10 to 16 inclusive) coincides with DEST */
+    memcpy(chars, orig_chars, 26);
+    ASSERT_EQ(chars + 10, p_memmove(chars + 10, chars + 10, 7));
+    ASSERT_EQ(0, memcmp(chars, "abcdefghij1234567rstuvwxyz", 26));
+
+    /* SRC (14 to 20 inclusive) begins within DEST and ends after DEST */
+    memcpy(chars, orig_chars, 26);
+    ASSERT_EQ(chars + 10, p_memmove(chars + 10, chars + 14, 7));
+    ASSERT_EQ(0, memcmp(chars, "abcdefghij567rsturstuvwxyz", 26));
+
+    /* SRC (17 to 23 inclusive) begins at end of DEST and ends after DEST */
+    memcpy(chars, orig_chars, 26);
+    ASSERT_EQ(chars + 10, p_memmove(chars + 10, chars + 17, 7));
+    ASSERT_EQ(0, memcmp(chars, "abcdefghijrstuvwxrstuvwxyz", 26));
+
+    /* SRC (19 to 25 inclusive) begins after DEST and ends after DEST */
+    memcpy(chars, orig_chars, 26);
+    ASSERT_EQ(chars + 10, p_memmove(chars + 10, chars + 19, 7));
+    ASSERT_EQ(0, memcmp(chars, "abcdefghijtuvwxyzrstuvwxyz", 26));
+
+    END_TEST(string);
+}
+
 int string_test()
 {
     CALL_TEST(string, memcmp);
     CALL_TEST(string, memset);
     CALL_TEST(string, memcpy);
+    CALL_TEST(string, memmove);
 
     END_TEST_GROUP(string);
 }
