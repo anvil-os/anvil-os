@@ -7,5 +7,6 @@
 #include <stddef.h>
 
 int memcmp(const void *__s1, const void *__s2, size_t __n);
+void *memset(void *__s, int __c, size_t __n);
 
 #endif

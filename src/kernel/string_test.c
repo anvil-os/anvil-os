@@ -35,9 +35,66 @@ TEST(string, memcmp)
     END_TEST(string);
 }
 
+TEST(string, memset)
+{
+    /* MEMSET */
+    const unsigned char ch1 = '\xbe';
+    const unsigned char ch2 = '\x99';
+
+    unsigned char test_buf[100];
+    int i;
+
+    /* Call memset thru a pointer so that gcc doesn't optimise the call away */
+    void *(* volatile p_memset)(void *s, int c, size_t n) = memset;
+
+    for (i=0; i<100; ++i)
+    {
+        test_buf[i] = ch1;
+    }
+
+    /* Try an empty memset */
+    /* We use volatile here to suppress a gcc warning */
+    ASSERT_EQ(test_buf+20, p_memset(test_buf+20, ch2, (volatile int)(0)));
+    for (i=0; i<100; ++i)
+    {
+        ASSERT_EQ(ch1, test_buf[i]);
+    }
+
+    /* Try an single byte memset */
+    ASSERT_EQ(test_buf+20, p_memset(test_buf+20, ch2, 1));
+    for (i=0; i<100; ++i)
+    {
+        if (i==20)
+        {
+            ASSERT_EQ(ch2, test_buf[i]);
+        }
+        else
+        {
+            ASSERT_EQ(ch1, test_buf[i]);
+        }
+    }
+
+    /* Try a bigger memset */
+    ASSERT_EQ(test_buf+20, p_memset(test_buf+20, ch2, 11));
+    for (i=0; i<100; ++i)
+    {
+        if (i>=20 && i<=30)
+        {
+            ASSERT_EQ(ch2, test_buf[i]);
+        }
+        else
+        {
+            ASSERT_EQ(ch1, test_buf[i]);
+        }
+    }
+
+    END_TEST(string);
+}
+
 int string_test()
 {
     CALL_TEST(string, memcmp);
+    CALL_TEST(string, memset);
 
     END_TEST_GROUP(string);
 }
