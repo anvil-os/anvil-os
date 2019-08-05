@@ -91,10 +91,68 @@ TEST(string, memset)
     END_TEST(string);
 }
 
+TEST(string, memcpy)
+{
+    /* MEMCPY */
+    const unsigned char ch1 = '\xbe';
+    const unsigned char src[] =
+    {
+        0xa0, 0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6, 0xa7, 0xa8, 0xa9,
+        0xaa, 0xab, 0xac, 0xad, 0xae, 0xaf
+    };
+
+    unsigned char test_buf[100];
+    int i;
+
+    /* Call memcpy thru a pointer so that gcc doesn't optimise the call away */
+    void *(* volatile p_memcpy)(void *restrict s1, const void *restrict s2, size_t n) = memcpy;
+
+    /* Try a 0 length memcpy */
+    memset(test_buf, ch1, sizeof(test_buf));
+    ASSERT_EQ(test_buf+29, p_memcpy(test_buf+29, src, 0));
+    for (i=0; i<100; ++i)
+    {
+        ASSERT_EQ(ch1, test_buf[i]);
+    }
+
+    /* Try a 1 byte memcpy */
+    memset(test_buf, ch1, sizeof(test_buf));
+    ASSERT_EQ(test_buf+29, p_memcpy(test_buf+29, src, 1));
+    for (i=0; i<100; ++i)
+    {
+        if (i==29)
+        {
+            ASSERT_EQ(src[0], test_buf[i]);
+        }
+        else
+        {
+            ASSERT_EQ(ch1, test_buf[i]);
+        }
+    }
+
+    /* Try a longer memcpy */
+    memset(test_buf, ch1, sizeof(test_buf));
+    ASSERT_EQ(test_buf+29, p_memcpy(test_buf+29, src, 13));
+    for (i=0; i<100; ++i)
+    {
+        if (i>=29 && i<=41)
+        {
+            ASSERT_EQ(src[i-29], test_buf[i]);
+        }
+        else
+        {
+            ASSERT_EQ(ch1, test_buf[i]);
+        }
+    }
+
+    END_TEST(string);
+}
+
 int string_test()
 {
     CALL_TEST(string, memcmp);
     CALL_TEST(string, memset);
+    CALL_TEST(string, memcpy);
 
     END_TEST_GROUP(string);
 }
