@@ -205,12 +205,43 @@ TEST(string, memmove)
     END_TEST(string);
 }
 
+TEST(string, memchr)
+{
+    /* MEMCHR */
+    const unsigned char mem0[] =
+    {
+        0x0, 0x0
+    };
+
+    const unsigned char mem1[] =
+    {
+        0xa0, 0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6, 0xa7,
+        0xa8, 0xa9, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaf
+    };
+
+    /* Call memmove thru a pointer so that gcc doesn't optimise the call away */
+    void *(* volatile p_memchr)(const void *s, int c, size_t n) = memchr;
+
+    ASSERT_EQ(NULL, p_memchr(mem0, 0, 0));
+    ASSERT_EQ(mem0, p_memchr(mem0, 0, 2));
+    ASSERT_EQ(NULL, p_memchr(mem0, 0xa0, 2));
+    ASSERT_EQ(mem1, p_memchr(mem1, 0xa0, 16));
+    ASSERT_EQ(mem1 + 1, p_memchr(mem1, 0xa1, 16));
+    ASSERT_EQ(mem1 + 10, p_memchr(mem1, 0xaa, 16));
+    ASSERT_EQ(mem1 + 11, p_memchr(mem1+11, 0xaa, 5));
+    ASSERT_EQ(mem1 + 15, p_memchr(mem1, 0xaf, 16));
+    ASSERT_EQ(NULL, p_memchr(mem1, 0xaf, 15));
+
+    END_TEST(string);
+}
+
 int string_test()
 {
     CALL_TEST(string, memcmp);
     CALL_TEST(string, memset);
     CALL_TEST(string, memcpy);
     CALL_TEST(string, memmove);
+    CALL_TEST(string, memchr);
 
     END_TEST_GROUP(string);
 }
