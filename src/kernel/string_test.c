@@ -235,6 +235,21 @@ TEST(string, memchr)
     END_TEST(string);
 }
 
+TEST(string, strlen)
+{
+    /* STRLEN */
+
+    /* Call strlen thru a pointer so that gcc doesn't optimise the call away */
+    size_t (* volatile p_strlen)(const char *s) = strlen;
+
+    ASSERT_EQ(0, p_strlen(""));
+    ASSERT_EQ(2, p_strlen("ag"));
+    ASSERT_EQ(3, p_strlen("abc"));
+    ASSERT_EQ(7, p_strlen("abcdefg\0hij"));
+
+    END_TEST(string);
+}
+
 int string_test()
 {
     CALL_TEST(string, memcmp);
@@ -242,6 +257,8 @@ int string_test()
     CALL_TEST(string, memcpy);
     CALL_TEST(string, memmove);
     CALL_TEST(string, memchr);
+
+    CALL_TEST(string, strlen);
 
     END_TEST_GROUP(string);
 }

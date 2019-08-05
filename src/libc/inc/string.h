@@ -12,4 +12,6 @@ void *memcpy(void *restrict __s1, const void *restrict __s2, size_t __n);
 void *memmove(void *__s1, const void *__s2, size_t __n);
 void *memchr(const void *__s, int __c, size_t __n);
 
+size_t strlen(const char *__s);
+
 #endif
