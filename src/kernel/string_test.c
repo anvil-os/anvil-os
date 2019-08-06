@@ -308,6 +308,137 @@ TEST(string, strncpy)
     END_TEST(string);
 }
 
+TEST(string, strcat)
+{
+    /* STRCAT */
+
+    /* Call strcat thru a pointer so that gcc doesn't optimise the call away */
+    char *(* volatile p_strcat)(char *restrict s1, const char *restrict s2) = strcat;
+
+    char dest_str[6];
+    const char src_str[] = "ab";
+
+    /* strcat "" to "" */
+    memset(dest_str, 0xcc, sizeof(dest_str));
+    dest_str[0] = 0;
+    ASSERT_EQ(dest_str, p_strcat(dest_str, ""));
+    ASSERT_EQ(0, memcmp("\0\xcc\xcc\xcc\xcc\xcc", dest_str, sizeof(dest_str)));
+
+    /* strcat "ab" to "" */
+    memset(dest_str, 0xcc, sizeof(dest_str));
+    dest_str[0] = 0;
+    ASSERT_EQ(dest_str, p_strcat(dest_str, src_str));
+    ASSERT_EQ(0, memcmp("ab\0\xcc\xcc\xcc", dest_str, sizeof(dest_str)));
+
+    /* strcat "" to "cd" */
+    memset(dest_str, 0xcc, sizeof(dest_str));
+    dest_str[0] = 'c';
+    dest_str[1] = 'd';
+    dest_str[2] = 0;
+    ASSERT_EQ(dest_str, p_strcat(dest_str, ""));
+    ASSERT_EQ(0, memcmp("cd\0\xcc\xcc\xcc", dest_str, sizeof(dest_str)));
+
+    /* strcat "ab" to "cd" */
+    memset(dest_str, 0xcc, sizeof(dest_str));
+    dest_str[0] = 'c';
+    dest_str[1] = 'd';
+    dest_str[2] = 0;
+    ASSERT_EQ(dest_str, p_strcat(dest_str, src_str));
+    ASSERT_EQ(0, memcmp("cdab\0\xcc", dest_str, sizeof(dest_str)));
+
+    END_TEST(string);
+}
+
+TEST(string, strncat)
+{
+    /* STRNCAT */
+
+    /* Call strncat thru a pointer so that gcc doesn't optimise the call away */
+    char *(* volatile p_strncat)(char *restrict s1, const char *restrict s2, size_t n) = strncat;
+
+    char dest_str[7];
+    const char src_str[] = "abc";
+
+    /* strncat ""    to "" n 0 */
+    memset(dest_str, 0xcc, sizeof(dest_str));
+    dest_str[0] = 0;
+    ASSERT_EQ(dest_str, p_strncat(dest_str, "", 0));
+    ASSERT_EQ(0, memcmp("\0\xcc\xcc\xcc\xcc\xcc\xcc", dest_str, sizeof(dest_str)));
+    /* strncat ""    to "" n 2 */
+    memset(dest_str, 0xcc, sizeof(dest_str));
+    dest_str[0] = 0;
+    ASSERT_EQ(dest_str, p_strncat(dest_str, "", 2));
+    ASSERT_EQ(0, memcmp("\0\xcc\xcc\xcc\xcc\xcc\xcc", dest_str, sizeof(dest_str)));
+
+    /* strncat "abc" to "" n 0 */
+    memset(dest_str, 0xcc, sizeof(dest_str));
+    dest_str[0] = 0;
+    ASSERT_EQ(dest_str, p_strncat(dest_str, src_str, 0));
+    ASSERT_EQ(0, memcmp("\0\xcc\xcc\xcc\xcc\xcc\xcc", dest_str, sizeof(dest_str)));
+    /* strncat "abc" to "" n 2 */
+    memset(dest_str, 0xcc, sizeof(dest_str));
+    dest_str[0] = 0;
+    ASSERT_EQ(dest_str, p_strncat(dest_str, src_str, 2));
+    ASSERT_EQ(0, memcmp("ab\0\xcc\xcc\xcc\xcc", dest_str, sizeof(dest_str)));
+    /* strncat "abc" to "" n 5 */
+    memset(dest_str, 0xcc, sizeof(dest_str));
+    dest_str[0] = 0;
+    ASSERT_EQ(dest_str, p_strncat(dest_str, src_str, 5));
+    ASSERT_EQ(0, memcmp("abc\0\xcc\xcc\xcc", dest_str, sizeof(dest_str)));
+
+    /* strncat "abc" to "def" n 0 */
+    memset(dest_str, 0xcc, sizeof(dest_str));
+    dest_str[0] = 'd';
+    dest_str[1] = 'e';
+    dest_str[2] = 'f';
+    dest_str[3] = 0;
+    ASSERT_EQ(dest_str, p_strncat(dest_str, src_str, 0));
+    ASSERT_EQ(0, memcmp("def\0\xcc\xcc\xcc", dest_str, sizeof(dest_str)));
+    /* strncat "abc" to "def" n 2 */
+    memset(dest_str, 0xcc, sizeof(dest_str));
+    dest_str[0] = 'd';
+    dest_str[1] = 'e';
+    dest_str[2] = 'f';
+    dest_str[3] = 0;
+    ASSERT_EQ(dest_str, p_strncat(dest_str, src_str, 2));
+    ASSERT_EQ(0, memcmp("defab\0\xcc", dest_str, sizeof(dest_str)));
+    /* strncat "abc" to "def" n 5 */
+    memset(dest_str, 0xcc, sizeof(dest_str));
+    dest_str[0] = 'd';
+    dest_str[1] = 'e';
+    dest_str[2] = 'f';
+    dest_str[3] = 0;
+    ASSERT_EQ(dest_str, p_strncat(dest_str, src_str, 5));
+    ASSERT_EQ(0, memcmp("defabc\0", dest_str, sizeof(dest_str)));
+
+    /* strncat "" to "def" n 0 */
+    memset(dest_str, 0xcc, sizeof(dest_str));
+    dest_str[0] = 'd';
+    dest_str[1] = 'e';
+    dest_str[2] = 'f';
+    dest_str[3] = 0;
+    ASSERT_EQ(dest_str, p_strncat(dest_str, "", 0));
+    ASSERT_EQ(0, memcmp("def\0\xcc\xcc\xcc", dest_str, sizeof(dest_str)));
+    /* strncat "" to "def" n 2 */
+    memset(dest_str, 0xcc, sizeof(dest_str));
+    dest_str[0] = 'd';
+    dest_str[1] = 'e';
+    dest_str[2] = 'f';
+    dest_str[3] = 0;
+    ASSERT_EQ(dest_str, p_strncat(dest_str, "", 2));
+    ASSERT_EQ(0, memcmp("def\0\xcc\xcc\xcc", dest_str, sizeof(dest_str)));
+    /* strncat "" to "def" n 5 */
+    memset(dest_str, 0xcc, sizeof(dest_str));
+    dest_str[0] = 'd';
+    dest_str[1] = 'e';
+    dest_str[2] = 'f';
+    dest_str[3] = 0;
+    ASSERT_EQ(dest_str, p_strncat(dest_str, "", 5));
+    ASSERT_EQ(0, memcmp("def\0\xcc\xcc\xcc", dest_str, sizeof(dest_str)));
+
+    END_TEST(string);
+}
+
 int string_test()
 {
     CALL_TEST(string, memcmp);
@@ -319,6 +450,8 @@ int string_test()
     CALL_TEST(string, strlen);
     CALL_TEST(string, strcpy);
     CALL_TEST(string, strncpy);
+    CALL_TEST(string, strcat);
+    CALL_TEST(string, strncat);
 
     END_TEST_GROUP(string);
 }
