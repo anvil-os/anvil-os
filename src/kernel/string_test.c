@@ -250,6 +250,43 @@ TEST(string, strlen)
     END_TEST(string);
 }
 
+TEST(string, strncpy)
+{
+    /* STRNCPY */
+
+    /* Call strncpy thru a pointer so that gcc doesn't optimise the call away */
+    char *(* volatile p_strncpy)(char *restrict s1, const char *restrict s2, size_t n) = strncpy;
+
+    char dest_str[10];
+    const char src_str[] = "abcdef";
+
+    memset(dest_str, 0xcc, sizeof(dest_str));
+    ASSERT_EQ(dest_str, p_strncpy(dest_str, src_str, 0));
+    ASSERT_EQ(0, memcmp("\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc", dest_str, sizeof(dest_str)));
+
+    memset(dest_str, 0xcc, sizeof(dest_str));
+    ASSERT_EQ(dest_str, p_strncpy(dest_str, src_str, 5));
+    ASSERT_EQ(0, memcmp("abcde\xcc\xcc\xcc\xcc\xcc", dest_str, sizeof(dest_str)));
+
+    memset(dest_str, 0xcc, sizeof(dest_str));
+    ASSERT_EQ(dest_str, p_strncpy(dest_str, src_str, 6));
+    ASSERT_EQ(0, memcmp("abcdef\xcc\xcc\xcc\xcc", dest_str, sizeof(dest_str)));
+
+    memset(dest_str, 0xcc, sizeof(dest_str));
+    ASSERT_EQ(dest_str, p_strncpy(dest_str, src_str, 7));
+    ASSERT_EQ(0, memcmp("abcdef\x00\xcc\xcc\xcc", dest_str, sizeof(dest_str)));
+
+    memset(dest_str, 0xcc, sizeof(dest_str));
+    ASSERT_EQ(dest_str, p_strncpy(dest_str, src_str, 9));
+    ASSERT_EQ(0, memcmp("abcdef\x00\x00\x00\xcc", dest_str, sizeof(dest_str)));
+
+    memset(dest_str, 0xcc, sizeof(dest_str));
+    ASSERT_EQ(dest_str, p_strncpy(dest_str, "", 9));
+    ASSERT_EQ(0, memcmp("\x00\x00\x00\x00\x00\x00\x00\x00\x00\xcc", dest_str, sizeof(dest_str)));
+
+    END_TEST(string);
+}
+
 int string_test()
 {
     CALL_TEST(string, memcmp);
@@ -259,6 +296,7 @@ int string_test()
     CALL_TEST(string, memchr);
 
     CALL_TEST(string, strlen);
+    CALL_TEST(string, strncpy);
 
     END_TEST_GROUP(string);
 }
