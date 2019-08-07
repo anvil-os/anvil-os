@@ -22,4 +22,7 @@ char *strncat(char *restrict __s1, const char *restrict __s2, size_t __n);
 int strcmp(const char *__s1, const char *__s2);
 int strncmp(const char *__s1, const char *__s2, size_t __n);
 
+char *strchr(const char *s, int c);
+char *strrchr(const char *s, int c);
+
 #endif

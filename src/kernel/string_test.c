@@ -481,6 +481,49 @@ TEST(string, strncmp)
     END_TEST(string);
 }
 
+TEST(string, strchr)
+{
+    char    test_buf[100];
+
+    /* STRCHR */
+    /* Call strchr thru a pointer so that gcc doesn't optimise the call away */
+    char *(* volatile STRCHR)(const char *s, int c) = strchr;
+
+    memset(test_buf, 0, sizeof(test_buf));
+    ASSERT_EQ(test_buf, STRCHR(test_buf, 0));
+    ASSERT_EQ(NULL, STRCHR(test_buf, 'a'));
+    strcpy(test_buf, "abb\xee""c");
+    ASSERT_EQ(test_buf, STRCHR(test_buf, 'a'));
+    ASSERT_EQ(test_buf + 1, STRCHR(test_buf, 'b'));
+    ASSERT_EQ(test_buf + 3, STRCHR(test_buf, '\xee'));
+    ASSERT_EQ(test_buf + 4, STRCHR(test_buf, 'c'));
+    ASSERT_EQ(test_buf + 5, STRCHR(test_buf, 0));
+    ASSERT_EQ(NULL, STRCHR(test_buf, 'd'));
+
+    END_TEST(string);
+}
+
+TEST(string, strrchr)
+{
+    char    test_buf[100];
+    /* STRRCHR */
+    /* Call strchr thru a pointer so that gcc doesn't optimise the call away */
+    char *(* volatile STRRCHR)(const char *s, int c) = strrchr;
+
+    memset(test_buf, 0, sizeof(test_buf));
+    ASSERT_EQ(test_buf, STRRCHR(test_buf, 0));
+    ASSERT_EQ(NULL, STRRCHR(test_buf, 'a'));
+    strcpy(test_buf, "abb\xee""c");
+    ASSERT_EQ(test_buf, STRRCHR(test_buf, 'a'));
+    ASSERT_EQ(test_buf + 2, STRRCHR(test_buf, 'b'));
+    ASSERT_EQ(test_buf + 3, STRRCHR(test_buf, '\xee'));
+    ASSERT_EQ(test_buf + 4, STRRCHR(test_buf, 'c'));
+    ASSERT_EQ(test_buf + 5, STRRCHR(test_buf, 0));
+    ASSERT_EQ(NULL, STRRCHR(test_buf, 'd'));
+
+    END_TEST(string);
+}
+
 int string_test()
 {
     CALL_TEST(string, memcmp);
@@ -496,6 +539,8 @@ int string_test()
     CALL_TEST(string, strncat);
     CALL_TEST(string, strcmp);
     CALL_TEST(string, strncmp);
+    CALL_TEST(string, strchr);
+    CALL_TEST(string, strrchr);
 
     END_TEST_GROUP(string);
 }
