@@ -439,6 +439,48 @@ TEST(string, strncat)
     END_TEST(string);
 }
 
+TEST(string, strcmp)
+{
+    /* STRCMP */
+    /* Call strcmp thru a pointer so that gcc doesn't optimise the call away */
+    int (* volatile STRCMP)(const char *s1, const char *s2) = strcmp;
+
+    ASSERT_EQ(0, STRCMP("", ""));
+    ASSERT_EQ(1, STRCMP("abc", ""));
+    ASSERT_EQ(-1, STRCMP("", "abc"));
+    ASSERT_EQ(0, STRCMP("abc", "abc"));
+    ASSERT_EQ(-1, STRCMP("abc", "abd"));
+    ASSERT_EQ(1, STRCMP("abe", "abd"));
+    ASSERT_EQ(1, STRCMP("abc", "ab"));
+    ASSERT_EQ(-1, STRCMP("ab", "abc"));
+
+    END_TEST(string);
+}
+
+TEST(string, strncmp)
+{
+    /* STRNCMP */
+    /* Call strcmp thru a pointer so that gcc doesn't optimise the call away */
+    int (* volatile STRNCMP)(const char *s1, const char *s2, size_t n) = strncmp;
+
+    ASSERT_EQ(0, STRNCMP("", "", 10));
+    ASSERT_EQ(1, STRNCMP("abc", "", 10));
+    ASSERT_EQ(-1, STRNCMP("", "abc", 10));
+    ASSERT_EQ(0, STRNCMP("abc", "abc", 10));
+    ASSERT_EQ(-1, STRNCMP("abc", "abd", 10));
+    ASSERT_EQ(1, STRNCMP("abe", "abd", 10));
+    ASSERT_EQ(1, STRNCMP("abc", "ab", 10));
+    ASSERT_EQ(-1, STRNCMP("ab", "abc", 10));
+    /* testing n */
+    ASSERT_EQ(0, STRNCMP("abc", "abc", 3));
+    ASSERT_EQ(0, STRNCMP("abc", "abd", 2));
+    ASSERT_EQ(0, STRNCMP("abc", "ab", 2));
+    ASSERT_EQ(0, STRNCMP("ab", "abc", 2));
+    ASSERT_EQ(0, STRNCMP("abc", "def", 0));
+
+    END_TEST(string);
+}
+
 int string_test()
 {
     CALL_TEST(string, memcmp);
@@ -452,6 +494,8 @@ int string_test()
     CALL_TEST(string, strncpy);
     CALL_TEST(string, strcat);
     CALL_TEST(string, strncat);
+    CALL_TEST(string, strcmp);
+    CALL_TEST(string, strncmp);
 
     END_TEST_GROUP(string);
 }
