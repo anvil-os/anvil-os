@@ -524,6 +524,84 @@ TEST(string, strrchr)
     END_TEST(string);
 }
 
+TEST(string, strspn)
+{
+    /* STRSPN */
+    /* Call function thru a pointer so that gcc doesn't optimise the call away */
+    size_t (* volatile STRSPN)(const char *s1, const char *s2) = strspn;
+
+    ASSERT_EQ(0, STRSPN("", ""));
+    ASSERT_EQ(0, STRSPN("", "x"));
+    ASSERT_EQ(0, STRSPN("", "xyz"));
+    ASSERT_EQ(0, STRSPN("abc", ""));
+    ASSERT_EQ(0, STRSPN("abc", "x"));
+    ASSERT_EQ(0, STRSPN("abc", "c"));
+    ASSERT_EQ(1, STRSPN("abc", "a"));
+    ASSERT_EQ(2, STRSPN("abc", "ba"));
+    ASSERT_EQ(3, STRSPN("abc", "abc"));
+    ASSERT_EQ(3, STRSPN("abcd", "abc"));
+    ASSERT_EQ(3, STRSPN("abc", "cab"));
+    ASSERT_EQ(3, STRSPN("abcd", "cab"));
+    ASSERT_EQ(3, STRSPN("abc", "axbc"));
+    ASSERT_EQ(3, STRSPN("abcd", "axbc"));
+    ASSERT_EQ(3, STRSPN("abc", "cxab"));
+    ASSERT_EQ(3, STRSPN("abcd", "cxab"));
+
+    END_TEST(string);
+}
+
+TEST(string, strcspn)
+{
+    /* STRCSPN */
+    /* Call function thru a pointer so that gcc doesn't optimise the call away */
+    size_t (* volatile STRCSPN)(const char *s1, const char *s2) = strcspn;
+
+    ASSERT_EQ(0, STRCSPN("", ""));
+    ASSERT_EQ(0, STRCSPN("", "x"));
+    ASSERT_EQ(0, STRCSPN("", "xyz"));
+    ASSERT_EQ(3, STRCSPN("abc", ""));
+    ASSERT_EQ(3, STRCSPN("abc", "x"));
+    ASSERT_EQ(2, STRCSPN("abc", "c"));
+    ASSERT_EQ(1, STRCSPN("abc", "b"));
+    ASSERT_EQ(0, STRCSPN("abc", "a"));
+    ASSERT_EQ(0, STRCSPN("abc", "ba"));
+    ASSERT_EQ(0, STRCSPN("abc", "abc"));
+    ASSERT_EQ(1, STRCSPN("abc", "bc"));
+    ASSERT_EQ(0, STRCSPN("abc", "ca"));
+    ASSERT_EQ(3, STRCSPN("abc", "xyz"));
+    ASSERT_EQ(0, STRCSPN("abc", "ayz"));
+    ASSERT_EQ(1, STRCSPN("abc", "xyb"));
+
+    END_TEST(string);
+}
+
+TEST(string, strpbrk)
+{
+    /* STRPBRK */
+    char *(* volatile STRPBRK)(const char *s1, const char *s2) = strpbrk;
+
+    char test_buf[100];
+    strcpy(test_buf, "");
+    ASSERT_EQ(NULL, STRPBRK(test_buf, ""));
+    ASSERT_EQ(NULL, STRPBRK(test_buf, "x"));
+    ASSERT_EQ(NULL, STRPBRK(test_buf, "xyz"));
+    strcpy(test_buf, "abc");
+    ASSERT_EQ(NULL, STRPBRK(test_buf, ""));
+    ASSERT_EQ(NULL, STRPBRK(test_buf, "x"));
+    ASSERT_EQ(test_buf + 2, STRPBRK(test_buf, "c"));
+    ASSERT_EQ(test_buf + 1, STRPBRK(test_buf, "b"));
+    ASSERT_EQ(test_buf, STRPBRK(test_buf, "a"));
+    ASSERT_EQ(test_buf, STRPBRK(test_buf, "ba"));
+    ASSERT_EQ(test_buf, STRPBRK(test_buf, "abc"));
+    ASSERT_EQ(test_buf + 1, STRPBRK(test_buf, "bc"));
+    ASSERT_EQ(test_buf, STRPBRK(test_buf, "ca"));
+    ASSERT_EQ(NULL, STRPBRK(test_buf, "xyz"));
+    ASSERT_EQ(test_buf, STRPBRK(test_buf, "ayz"));
+    ASSERT_EQ(test_buf + 1, STRPBRK(test_buf, "xyb"));
+
+    END_TEST(string);
+}
+
 int string_test()
 {
     CALL_TEST(string, memcmp);
@@ -541,6 +619,9 @@ int string_test()
     CALL_TEST(string, strncmp);
     CALL_TEST(string, strchr);
     CALL_TEST(string, strrchr);
+    CALL_TEST(string, strspn);
+    CALL_TEST(string, strcspn);
+    CALL_TEST(string, strpbrk);
 
     END_TEST_GROUP(string);
 }
