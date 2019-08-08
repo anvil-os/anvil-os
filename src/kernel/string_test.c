@@ -453,6 +453,8 @@ TEST(string, strcmp)
     ASSERT_EQ(1, STRCMP("abe", "abd"));
     ASSERT_EQ(1, STRCMP("abc", "ab"));
     ASSERT_EQ(-1, STRCMP("ab", "abc"));
+    ASSERT_EQ(-1, STRCMP("ab", "ab\xaa"));
+    ASSERT_EQ(-1, STRCMP("abc", "ab\xaa"));
 
     END_TEST(string);
 }
@@ -471,6 +473,8 @@ TEST(string, strncmp)
     ASSERT_EQ(1, STRNCMP("abe", "abd", 10));
     ASSERT_EQ(1, STRNCMP("abc", "ab", 10));
     ASSERT_EQ(-1, STRNCMP("ab", "abc", 10));
+    ASSERT_EQ(-1, STRNCMP("ab", "ab\xaa", 10));
+    ASSERT_EQ(-1, STRNCMP("abc", "ab\xaa", 10));
     /* testing n */
     ASSERT_EQ(0, STRNCMP("abc", "abc", 3));
     ASSERT_EQ(0, STRNCMP("abc", "abd", 2));
