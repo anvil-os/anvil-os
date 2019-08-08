@@ -606,6 +606,32 @@ TEST(string, strpbrk)
     END_TEST(string);
 }
 
+TEST(string, strstr)
+{
+    /* STRSPN */
+    /* Call function thru a pointer so that gcc doesn't optimise the call away */
+    char *(* volatile STRSTR)(const char *s1, const char *s2) = strstr;
+
+    char test_buf[100];
+    strcpy(test_buf, "");
+    ASSERT_EQ(test_buf, STRSTR(test_buf, ""));
+    ASSERT_EQ(NULL, STRSTR(test_buf, "a"));
+    ASSERT_EQ(NULL, STRSTR(test_buf, "abc"));
+    strcpy(test_buf, "aababcd");
+    ASSERT_EQ(test_buf, STRSTR(test_buf, ""));
+    ASSERT_EQ(test_buf, STRSTR(test_buf, "a"));
+    ASSERT_EQ(test_buf, STRSTR(test_buf, "aa"));
+    ASSERT_EQ(test_buf + 1, STRSTR(test_buf, "ab"));
+    ASSERT_EQ(test_buf + 3, STRSTR(test_buf, "abc"));
+    ASSERT_EQ(test_buf + 3, STRSTR(test_buf, "abcd"));
+    ASSERT_EQ(NULL, STRSTR(test_buf, "abcde"));
+    ASSERT_EQ(test_buf + 5, STRSTR(test_buf, "cd"));
+    ASSERT_EQ(test_buf + 6, STRSTR(test_buf, "d"));
+    ASSERT_EQ(NULL, STRSTR(test_buf, "e"));
+
+    END_TEST(string);
+}
+
 int string_test()
 {
     CALL_TEST(string, memcmp);
@@ -626,6 +652,7 @@ int string_test()
     CALL_TEST(string, strspn);
     CALL_TEST(string, strcspn);
     CALL_TEST(string, strpbrk);
+    CALL_TEST(string, strstr);
 
     END_TEST_GROUP(string);
 }
