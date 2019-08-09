@@ -21,6 +21,7 @@ MODULE_LDFLAGS := \
 
 MODULE_CPPFLAGS := \
     -I$(SRCDIR)/../bsp \
+	-I$(PROJECT_ROOT)/libc/test \
     -nostartfiles \
     -fno-exceptions -fno-unwind-tables -fno-asynchronous-unwind-tables
 
