@@ -30,5 +30,6 @@ size_t strcspn(const char *__s1, const char *__s2);
 char *strpbrk(const char *__s1, const char *__s2);
 
 char *strstr(const char *__s1, const char *__s2);
+char *strtok(char *restrict __s1, const char *restrict __s2);
 
 #endif

@@ -608,7 +608,7 @@ TEST(string, strpbrk)
 
 TEST(string, strstr)
 {
-    /* STRSPN */
+    /* STRSTR */
     /* Call function thru a pointer so that gcc doesn't optimise the call away */
     char *(* volatile STRSTR)(const char *s1, const char *s2) = strstr;
 
@@ -628,6 +628,54 @@ TEST(string, strstr)
     ASSERT_EQ(test_buf + 5, STRSTR(test_buf, "cd"));
     ASSERT_EQ(test_buf + 6, STRSTR(test_buf, "d"));
     ASSERT_EQ(NULL, STRSTR(test_buf, "e"));
+
+    END_TEST(string);
+}
+
+TEST(string, strtok)
+{
+    /* STRTOK */
+    /* Call function thru a pointer so that gcc doesn't optimise the call away */
+    char *(* volatile STRTOK)(char *restrict s1, const char *restrict s2) = strtok;
+
+    char test_buf[100];
+    char *ret;
+
+    memcpy(test_buf, "The quick*brown  fox\0j", 22);
+    ret = STRTOK(test_buf, " *");
+    ASSERT_EQ(test_buf, ret);
+    ASSERT_EQ(0, strcmp(ret, "The"));
+    ASSERT_EQ(0, memcmp(test_buf, "The\0quick*brown  fox\0j", 22));
+    ret = STRTOK(NULL, " *");
+    ASSERT_EQ(test_buf + 4, ret);
+    ASSERT_EQ(0, strcmp(ret, "quick"));
+    ASSERT_EQ(0, memcmp(test_buf, "The\0quick\0brown  fox\0j", 22));
+    ret = STRTOK(NULL, " *");
+    ASSERT_EQ(test_buf + 10, ret);
+    ASSERT_EQ(0, strcmp(ret, "brown"));
+    ASSERT_EQ(0, memcmp(test_buf, "The\0quick\0brown\0 fox\0j", 22));
+    ret = STRTOK(NULL, " *");
+    ASSERT_EQ(test_buf + 17, ret);
+    ASSERT_EQ(0, strcmp(ret, "fox"));
+    ASSERT_EQ(0, memcmp(test_buf, "The\0quick\0brown\0 fox\0j", 22));
+    ret = STRTOK(NULL, " *");
+    ASSERT_EQ(NULL, ret);
+    ASSERT_EQ(0, memcmp(test_buf, "The\0quick\0brown\0 fox\0j", 22));
+
+    /* Do the test from the C standard */
+    memcpy(test_buf, "?a???b,,,#c", 12);
+    ret = STRTOK(test_buf, "?");
+    /* t points to the token "a" */
+    ASSERT_EQ(0, strcmp(ret, "a"));
+    ret = STRTOK(NULL, ",");
+    /* t points to the token "??b" */
+    ASSERT_EQ(0, strcmp(ret, "??b"));
+    ret = STRTOK(NULL, "#,");
+    /* t points to the token "c" */
+    ASSERT_EQ(0, strcmp(ret, "c"));
+    ret = STRTOK(NULL, "?");
+    /* t is a null pointer */
+    ASSERT_EQ(NULL, ret);
 
     END_TEST(string);
 }
@@ -653,6 +701,7 @@ int string_test()
     CALL_TEST(string, strcspn);
     CALL_TEST(string, strpbrk);
     CALL_TEST(string, strstr);
+    CALL_TEST(string, strtok);
 
     END_TEST_GROUP(string);
 }
