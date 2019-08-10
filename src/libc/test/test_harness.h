@@ -14,6 +14,16 @@
          } \
     } while (0)
 
+#define ASSERT_NE(__expected, __actual)    \
+    do \
+    { \
+         if (((__expected) == (__actual))) \
+         { \
+             __test_harness_print_error(__FILE__, __LINE__, #__actual, (long)(__actual)  , (long)(__expected)); \
+             return 1; \
+         } \
+    } while (0)
+
 #define END_TEST(__group) {++ __group ## _pass_cnt;}   return 0; }
 
 

@@ -8,6 +8,6 @@ MODULE_CFLAGS :=					\
 
 LIBRARY := libc.a
 MODULE_CFLAGS += -static
-DIRS := string test
+DIRS := string ctype test
 
 include $(PROJECT_ROOT)/make/default.mk
