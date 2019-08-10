@@ -2,6 +2,10 @@
 #ifndef _STRING_H_INCLUDED
 #define _STRING_H_INCLUDED
 
+#ifndef _SYS_ANVIL_INTERNAL_H_INCLUDED
+#include <sys/anvil_internal.h>
+#endif
+
 #define __need_NULL
 #define __need_size_t
 #include <stddef.h>

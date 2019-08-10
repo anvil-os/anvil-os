@@ -256,6 +256,42 @@ TEST(ctype, isxdigit)
     END_TEST(ctype);
 }
 
+TEST(ctype, tolower)
+{
+    int (* volatile TOLOWER)(int c) = tolower;
+    int c;
+    for (c = FIRST_CHAR; c <= LAST_CHAR; ++c)
+    {
+        if ('A' <= c && c <= 'Z')
+        {
+            ASSERT_EQ(c - 'A' + 'a', TOLOWER(c));
+        }
+        else
+        {
+            ASSERT_EQ(c, TOLOWER(c));
+        }
+    }
+    END_TEST(ctype);
+}
+
+TEST(ctype, toupper)
+{
+    int (* volatile TOUPPER)(int c) = toupper;
+    int c;
+    for (c = FIRST_CHAR; c <= LAST_CHAR; ++c)
+    {
+        if ('a' <= c && c <= 'z')
+        {
+            ASSERT_EQ(c - 'a' + 'A', TOUPPER(c));
+        }
+        else
+        {
+            ASSERT_EQ(c, TOUPPER(c));
+        }
+    }
+    END_TEST(ctype);
+}
+
 int ctype_test()
 {
     CALL_TEST(ctype, isalnum);
@@ -270,6 +306,8 @@ int ctype_test()
     CALL_TEST(ctype, isspace);
     CALL_TEST(ctype, isupper);
     CALL_TEST(ctype, isxdigit);
+    CALL_TEST(ctype, tolower);
+    CALL_TEST(ctype, toupper);
 
     END_TEST_GROUP(ctype);
 }
