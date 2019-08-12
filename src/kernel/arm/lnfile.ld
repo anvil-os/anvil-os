@@ -16,7 +16,17 @@ SECTIONS
     	__etext__ = .;
 	} > INTERNAL_ROM
 
-	.data : AT (__etext__)
+	.ARM.exidx :
+	{
+	    __sexidx__ = .;
+	    *(.ARM.exidx* .gnu.linkonce.armexidx.*)
+	    __eexidx__ = .;
+	} > INTERNAL_ROM
+
+	. = ALIGN(4);
+	__erom__ = .;
+
+	.data : AT (__erom__)
 	{
 		__sdata__ = .;
 		*(.data*)

@@ -6,6 +6,7 @@ extern char __sdata__;
 extern char __edata__;
 extern char __sbss__;
 extern char __ebss__;
+extern char __erom__;
 
 int main();
 void SystemInit();
@@ -17,7 +18,7 @@ void start()
 
     /* Copy data from ROM to RAM */
     n = &__edata__ - &__sdata__;
-    s = &__etext__;
+    s = &__erom__;
     d = &__sdata__;
     while (n--)
     {
