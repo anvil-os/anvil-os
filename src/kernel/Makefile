@@ -8,6 +8,7 @@ MODULE_LDFLAGS := \
     -lbsp \
     -nostartfiles \
     -nostdlib \
+    -lgcc \
     -fno-exceptions \
     -fno-unwind-tables \
     -fno-asynchronous-unwind-tables \

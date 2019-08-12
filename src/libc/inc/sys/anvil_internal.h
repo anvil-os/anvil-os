@@ -23,4 +23,9 @@
 #define _ANVIL_CTYPE_RANGE_FIX(__c) do { c = (c == -1 ? 0 : (unsigned char)c + 1); } while (0);
 //#define _ANVIL_CTYPE_RANGE_FIX(__c) do { ++c; } while (0);
 
+unsigned long long _Anvil_strtoll(const char *restrict str,
+                    char **restrict endptr,
+                    int base, long long min,
+                    unsigned long long max);
+
 #endif /* _SYS_ANVIL_INTERNAL_H_INCLUDED */

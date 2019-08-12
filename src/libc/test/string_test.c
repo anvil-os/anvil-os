@@ -54,14 +54,14 @@ TEST(string, memset)
 
     /* Try an empty memset */
     /* We use volatile here to suppress a gcc warning */
-    ASSERT_EQ(test_buf+20, p_memset(test_buf+20, ch2, (volatile int)(0)));
+    ASSERT_PTR_EQ(test_buf+20, p_memset(test_buf+20, ch2, (volatile int)(0)));
     for (i=0; i<100; ++i)
     {
         ASSERT_EQ(ch1, test_buf[i]);
     }
 
     /* Try an single byte memset */
-    ASSERT_EQ(test_buf+20, p_memset(test_buf+20, ch2, 1));
+    ASSERT_PTR_EQ(test_buf+20, p_memset(test_buf+20, ch2, 1));
     for (i=0; i<100; ++i)
     {
         if (i==20)
@@ -75,7 +75,7 @@ TEST(string, memset)
     }
 
     /* Try a bigger memset */
-    ASSERT_EQ(test_buf+20, p_memset(test_buf+20, ch2, 11));
+    ASSERT_PTR_EQ(test_buf+20, p_memset(test_buf+20, ch2, 11));
     for (i=0; i<100; ++i)
     {
         if (i>=20 && i<=30)
@@ -109,7 +109,7 @@ TEST(string, memcpy)
 
     /* Try a 0 length memcpy */
     memset(test_buf, ch1, sizeof(test_buf));
-    ASSERT_EQ(test_buf+29, p_memcpy(test_buf+29, src, 0));
+    ASSERT_PTR_EQ(test_buf+29, p_memcpy(test_buf+29, src, 0));
     for (i=0; i<100; ++i)
     {
         ASSERT_EQ(ch1, test_buf[i]);
@@ -117,7 +117,7 @@ TEST(string, memcpy)
 
     /* Try a 1 byte memcpy */
     memset(test_buf, ch1, sizeof(test_buf));
-    ASSERT_EQ(test_buf+29, p_memcpy(test_buf+29, src, 1));
+    ASSERT_PTR_EQ(test_buf+29, p_memcpy(test_buf+29, src, 1));
     for (i=0; i<100; ++i)
     {
         if (i==29)
@@ -132,7 +132,7 @@ TEST(string, memcpy)
 
     /* Try a longer memcpy */
     memset(test_buf, ch1, sizeof(test_buf));
-    ASSERT_EQ(test_buf+29, p_memcpy(test_buf+29, src, 13));
+    ASSERT_PTR_EQ(test_buf+29, p_memcpy(test_buf+29, src, 13));
     for (i=0; i<100; ++i)
     {
         if (i>=29 && i<=41)
@@ -164,42 +164,42 @@ TEST(string, memmove)
      * because that's the one that usually fails if memcpy is used
      */
     memcpy(chars, orig_chars, 26);
-    ASSERT_EQ(chars + 10, p_memmove(chars + 10, chars + 7, 0));
+    ASSERT_PTR_EQ(chars + 10, p_memmove(chars + 10, chars + 7, 0));
     ASSERT_EQ(0, memcmp(chars, orig_chars, 26));
 
     /* SRC (2 to 8 inclusive) begins before DEST and ends before DEST */
     memcpy(chars, orig_chars, 26);
-    ASSERT_EQ(chars + 10, p_memmove(chars + 10, chars + 2, 7));
+    ASSERT_PTR_EQ(chars + 10, p_memmove(chars + 10, chars + 2, 7));
     ASSERT_EQ(0, memcmp(chars, "abcdefghijcdefghirstuvwxyz", 26));
 
     /* SRC (3 to 9 inclusive) begins before DEST and ends at beginning of DEST */
     memcpy(chars, orig_chars, 26);
-    ASSERT_EQ(chars + 10, p_memmove(chars + 10, chars + 3, 7));
+    ASSERT_PTR_EQ(chars + 10, p_memmove(chars + 10, chars + 3, 7));
     ASSERT_EQ(0, memcmp(chars, "abcdefghijdefghijrstuvwxyz", 26));
 
     /* SRC (7 to 13 inclusive) begins before DEST and ends within DEST */
     memcpy(chars, orig_chars, 26);
-    ASSERT_EQ(chars + 10, p_memmove(chars + 10, chars + 7, 7));
+    ASSERT_PTR_EQ(chars + 10, p_memmove(chars + 10, chars + 7, 7));
     ASSERT_EQ(0, memcmp(chars, "abcdefghijhij1234rstuvwxyz", 26));
 
     /* SRC (10 to 16 inclusive) coincides with DEST */
     memcpy(chars, orig_chars, 26);
-    ASSERT_EQ(chars + 10, p_memmove(chars + 10, chars + 10, 7));
+    ASSERT_PTR_EQ(chars + 10, p_memmove(chars + 10, chars + 10, 7));
     ASSERT_EQ(0, memcmp(chars, "abcdefghij1234567rstuvwxyz", 26));
 
     /* SRC (14 to 20 inclusive) begins within DEST and ends after DEST */
     memcpy(chars, orig_chars, 26);
-    ASSERT_EQ(chars + 10, p_memmove(chars + 10, chars + 14, 7));
+    ASSERT_PTR_EQ(chars + 10, p_memmove(chars + 10, chars + 14, 7));
     ASSERT_EQ(0, memcmp(chars, "abcdefghij567rsturstuvwxyz", 26));
 
     /* SRC (17 to 23 inclusive) begins at end of DEST and ends after DEST */
     memcpy(chars, orig_chars, 26);
-    ASSERT_EQ(chars + 10, p_memmove(chars + 10, chars + 17, 7));
+    ASSERT_PTR_EQ(chars + 10, p_memmove(chars + 10, chars + 17, 7));
     ASSERT_EQ(0, memcmp(chars, "abcdefghijrstuvwxrstuvwxyz", 26));
 
     /* SRC (19 to 25 inclusive) begins after DEST and ends after DEST */
     memcpy(chars, orig_chars, 26);
-    ASSERT_EQ(chars + 10, p_memmove(chars + 10, chars + 19, 7));
+    ASSERT_PTR_EQ(chars + 10, p_memmove(chars + 10, chars + 19, 7));
     ASSERT_EQ(0, memcmp(chars, "abcdefghijtuvwxyzrstuvwxyz", 26));
 
     END_TEST(string);
@@ -222,15 +222,15 @@ TEST(string, memchr)
     /* Call memmove thru a pointer so that gcc doesn't optimise the call away */
     void *(* volatile p_memchr)(const void *s, int c, size_t n) = memchr;
 
-    ASSERT_EQ(NULL, p_memchr(mem0, 0, 0));
-    ASSERT_EQ(mem0, p_memchr(mem0, 0, 2));
-    ASSERT_EQ(NULL, p_memchr(mem0, 0xa0, 2));
-    ASSERT_EQ(mem1, p_memchr(mem1, 0xa0, 16));
-    ASSERT_EQ(mem1 + 1, p_memchr(mem1, 0xa1, 16));
-    ASSERT_EQ(mem1 + 10, p_memchr(mem1, 0xaa, 16));
-    ASSERT_EQ(mem1 + 11, p_memchr(mem1+11, 0xaa, 5));
-    ASSERT_EQ(mem1 + 15, p_memchr(mem1, 0xaf, 16));
-    ASSERT_EQ(NULL, p_memchr(mem1, 0xaf, 15));
+    ASSERT_PTR_EQ(NULL, p_memchr(mem0, 0, 0));
+    ASSERT_PTR_EQ(mem0, p_memchr(mem0, 0, 2));
+    ASSERT_PTR_EQ(NULL, p_memchr(mem0, 0xa0, 2));
+    ASSERT_PTR_EQ(mem1, p_memchr(mem1, 0xa0, 16));
+    ASSERT_PTR_EQ(mem1 + 1, p_memchr(mem1, 0xa1, 16));
+    ASSERT_PTR_EQ(mem1 + 10, p_memchr(mem1, 0xaa, 16));
+    ASSERT_PTR_EQ(mem1 + 11, p_memchr(mem1+11, 0xaa, 5));
+    ASSERT_PTR_EQ(mem1 + 15, p_memchr(mem1, 0xaf, 16));
+    ASSERT_PTR_EQ(NULL, p_memchr(mem1, 0xaf, 15));
 
     END_TEST(string);
 }
@@ -261,11 +261,11 @@ TEST(string, strcpy)
     const char src_str[] = "abcdef";
 
     memset(dest_str, 0xcc, sizeof(dest_str));
-    ASSERT_EQ(dest_str, p_strcpy(dest_str, ""));
+    ASSERT_PTR_EQ(dest_str, p_strcpy(dest_str, ""));
     ASSERT_EQ(0, memcmp("\0\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc", dest_str, sizeof(dest_str)));
 
     memset(dest_str, 0xcc, sizeof(dest_str));
-    ASSERT_EQ(dest_str, p_strcpy(dest_str, src_str));
+    ASSERT_PTR_EQ(dest_str, p_strcpy(dest_str, src_str));
     ASSERT_EQ(0, memcmp("abcdef\0\xcc\xcc\xcc", dest_str, sizeof(dest_str)));
 
     END_TEST(string);
@@ -282,27 +282,27 @@ TEST(string, strncpy)
     const char src_str[] = "abcdef";
 
     memset(dest_str, 0xcc, sizeof(dest_str));
-    ASSERT_EQ(dest_str, p_strncpy(dest_str, src_str, 0));
+    ASSERT_PTR_EQ(dest_str, p_strncpy(dest_str, src_str, 0));
     ASSERT_EQ(0, memcmp("\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc\xcc", dest_str, sizeof(dest_str)));
 
     memset(dest_str, 0xcc, sizeof(dest_str));
-    ASSERT_EQ(dest_str, p_strncpy(dest_str, src_str, 5));
+    ASSERT_PTR_EQ(dest_str, p_strncpy(dest_str, src_str, 5));
     ASSERT_EQ(0, memcmp("abcde\xcc\xcc\xcc\xcc\xcc", dest_str, sizeof(dest_str)));
 
     memset(dest_str, 0xcc, sizeof(dest_str));
-    ASSERT_EQ(dest_str, p_strncpy(dest_str, src_str, 6));
+    ASSERT_PTR_EQ(dest_str, p_strncpy(dest_str, src_str, 6));
     ASSERT_EQ(0, memcmp("abcdef\xcc\xcc\xcc\xcc", dest_str, sizeof(dest_str)));
 
     memset(dest_str, 0xcc, sizeof(dest_str));
-    ASSERT_EQ(dest_str, p_strncpy(dest_str, src_str, 7));
+    ASSERT_PTR_EQ(dest_str, p_strncpy(dest_str, src_str, 7));
     ASSERT_EQ(0, memcmp("abcdef\x00\xcc\xcc\xcc", dest_str, sizeof(dest_str)));
 
     memset(dest_str, 0xcc, sizeof(dest_str));
-    ASSERT_EQ(dest_str, p_strncpy(dest_str, src_str, 9));
+    ASSERT_PTR_EQ(dest_str, p_strncpy(dest_str, src_str, 9));
     ASSERT_EQ(0, memcmp("abcdef\x00\x00\x00\xcc", dest_str, sizeof(dest_str)));
 
     memset(dest_str, 0xcc, sizeof(dest_str));
-    ASSERT_EQ(dest_str, p_strncpy(dest_str, "", 9));
+    ASSERT_PTR_EQ(dest_str, p_strncpy(dest_str, "", 9));
     ASSERT_EQ(0, memcmp("\x00\x00\x00\x00\x00\x00\x00\x00\x00\xcc", dest_str, sizeof(dest_str)));
 
     END_TEST(string);
@@ -321,13 +321,13 @@ TEST(string, strcat)
     /* strcat "" to "" */
     memset(dest_str, 0xcc, sizeof(dest_str));
     dest_str[0] = 0;
-    ASSERT_EQ(dest_str, p_strcat(dest_str, ""));
+    ASSERT_PTR_EQ(dest_str, p_strcat(dest_str, ""));
     ASSERT_EQ(0, memcmp("\0\xcc\xcc\xcc\xcc\xcc", dest_str, sizeof(dest_str)));
 
     /* strcat "ab" to "" */
     memset(dest_str, 0xcc, sizeof(dest_str));
     dest_str[0] = 0;
-    ASSERT_EQ(dest_str, p_strcat(dest_str, src_str));
+    ASSERT_PTR_EQ(dest_str, p_strcat(dest_str, src_str));
     ASSERT_EQ(0, memcmp("ab\0\xcc\xcc\xcc", dest_str, sizeof(dest_str)));
 
     /* strcat "" to "cd" */
@@ -335,7 +335,7 @@ TEST(string, strcat)
     dest_str[0] = 'c';
     dest_str[1] = 'd';
     dest_str[2] = 0;
-    ASSERT_EQ(dest_str, p_strcat(dest_str, ""));
+    ASSERT_PTR_EQ(dest_str, p_strcat(dest_str, ""));
     ASSERT_EQ(0, memcmp("cd\0\xcc\xcc\xcc", dest_str, sizeof(dest_str)));
 
     /* strcat "ab" to "cd" */
@@ -343,7 +343,7 @@ TEST(string, strcat)
     dest_str[0] = 'c';
     dest_str[1] = 'd';
     dest_str[2] = 0;
-    ASSERT_EQ(dest_str, p_strcat(dest_str, src_str));
+    ASSERT_PTR_EQ(dest_str, p_strcat(dest_str, src_str));
     ASSERT_EQ(0, memcmp("cdab\0\xcc", dest_str, sizeof(dest_str)));
 
     END_TEST(string);
@@ -362,28 +362,28 @@ TEST(string, strncat)
     /* strncat ""    to "" n 0 */
     memset(dest_str, 0xcc, sizeof(dest_str));
     dest_str[0] = 0;
-    ASSERT_EQ(dest_str, p_strncat(dest_str, "", 0));
+    ASSERT_PTR_EQ(dest_str, p_strncat(dest_str, "", 0));
     ASSERT_EQ(0, memcmp("\0\xcc\xcc\xcc\xcc\xcc\xcc", dest_str, sizeof(dest_str)));
     /* strncat ""    to "" n 2 */
     memset(dest_str, 0xcc, sizeof(dest_str));
     dest_str[0] = 0;
-    ASSERT_EQ(dest_str, p_strncat(dest_str, "", 2));
+    ASSERT_PTR_EQ(dest_str, p_strncat(dest_str, "", 2));
     ASSERT_EQ(0, memcmp("\0\xcc\xcc\xcc\xcc\xcc\xcc", dest_str, sizeof(dest_str)));
 
     /* strncat "abc" to "" n 0 */
     memset(dest_str, 0xcc, sizeof(dest_str));
     dest_str[0] = 0;
-    ASSERT_EQ(dest_str, p_strncat(dest_str, src_str, 0));
+    ASSERT_PTR_EQ(dest_str, p_strncat(dest_str, src_str, 0));
     ASSERT_EQ(0, memcmp("\0\xcc\xcc\xcc\xcc\xcc\xcc", dest_str, sizeof(dest_str)));
     /* strncat "abc" to "" n 2 */
     memset(dest_str, 0xcc, sizeof(dest_str));
     dest_str[0] = 0;
-    ASSERT_EQ(dest_str, p_strncat(dest_str, src_str, 2));
+    ASSERT_PTR_EQ(dest_str, p_strncat(dest_str, src_str, 2));
     ASSERT_EQ(0, memcmp("ab\0\xcc\xcc\xcc\xcc", dest_str, sizeof(dest_str)));
     /* strncat "abc" to "" n 5 */
     memset(dest_str, 0xcc, sizeof(dest_str));
     dest_str[0] = 0;
-    ASSERT_EQ(dest_str, p_strncat(dest_str, src_str, 5));
+    ASSERT_PTR_EQ(dest_str, p_strncat(dest_str, src_str, 5));
     ASSERT_EQ(0, memcmp("abc\0\xcc\xcc\xcc", dest_str, sizeof(dest_str)));
 
     /* strncat "abc" to "def" n 0 */
@@ -392,7 +392,7 @@ TEST(string, strncat)
     dest_str[1] = 'e';
     dest_str[2] = 'f';
     dest_str[3] = 0;
-    ASSERT_EQ(dest_str, p_strncat(dest_str, src_str, 0));
+    ASSERT_PTR_EQ(dest_str, p_strncat(dest_str, src_str, 0));
     ASSERT_EQ(0, memcmp("def\0\xcc\xcc\xcc", dest_str, sizeof(dest_str)));
     /* strncat "abc" to "def" n 2 */
     memset(dest_str, 0xcc, sizeof(dest_str));
@@ -400,7 +400,7 @@ TEST(string, strncat)
     dest_str[1] = 'e';
     dest_str[2] = 'f';
     dest_str[3] = 0;
-    ASSERT_EQ(dest_str, p_strncat(dest_str, src_str, 2));
+    ASSERT_PTR_EQ(dest_str, p_strncat(dest_str, src_str, 2));
     ASSERT_EQ(0, memcmp("defab\0\xcc", dest_str, sizeof(dest_str)));
     /* strncat "abc" to "def" n 5 */
     memset(dest_str, 0xcc, sizeof(dest_str));
@@ -408,7 +408,7 @@ TEST(string, strncat)
     dest_str[1] = 'e';
     dest_str[2] = 'f';
     dest_str[3] = 0;
-    ASSERT_EQ(dest_str, p_strncat(dest_str, src_str, 5));
+    ASSERT_PTR_EQ(dest_str, p_strncat(dest_str, src_str, 5));
     ASSERT_EQ(0, memcmp("defabc\0", dest_str, sizeof(dest_str)));
 
     /* strncat "" to "def" n 0 */
@@ -417,7 +417,7 @@ TEST(string, strncat)
     dest_str[1] = 'e';
     dest_str[2] = 'f';
     dest_str[3] = 0;
-    ASSERT_EQ(dest_str, p_strncat(dest_str, "", 0));
+    ASSERT_PTR_EQ(dest_str, p_strncat(dest_str, "", 0));
     ASSERT_EQ(0, memcmp("def\0\xcc\xcc\xcc", dest_str, sizeof(dest_str)));
     /* strncat "" to "def" n 2 */
     memset(dest_str, 0xcc, sizeof(dest_str));
@@ -425,7 +425,7 @@ TEST(string, strncat)
     dest_str[1] = 'e';
     dest_str[2] = 'f';
     dest_str[3] = 0;
-    ASSERT_EQ(dest_str, p_strncat(dest_str, "", 2));
+    ASSERT_PTR_EQ(dest_str, p_strncat(dest_str, "", 2));
     ASSERT_EQ(0, memcmp("def\0\xcc\xcc\xcc", dest_str, sizeof(dest_str)));
     /* strncat "" to "def" n 5 */
     memset(dest_str, 0xcc, sizeof(dest_str));
@@ -433,7 +433,7 @@ TEST(string, strncat)
     dest_str[1] = 'e';
     dest_str[2] = 'f';
     dest_str[3] = 0;
-    ASSERT_EQ(dest_str, p_strncat(dest_str, "", 5));
+    ASSERT_PTR_EQ(dest_str, p_strncat(dest_str, "", 5));
     ASSERT_EQ(0, memcmp("def\0\xcc\xcc\xcc", dest_str, sizeof(dest_str)));
 
     END_TEST(string);
@@ -494,15 +494,15 @@ TEST(string, strchr)
     char *(* volatile STRCHR)(const char *s, int c) = strchr;
 
     memset(test_buf, 0, sizeof(test_buf));
-    ASSERT_EQ(test_buf, STRCHR(test_buf, 0));
-    ASSERT_EQ(NULL, STRCHR(test_buf, 'a'));
+    ASSERT_PTR_EQ(test_buf, STRCHR(test_buf, 0));
+    ASSERT_PTR_EQ(NULL, STRCHR(test_buf, 'a'));
     strcpy(test_buf, "abb\xee""c");
-    ASSERT_EQ(test_buf, STRCHR(test_buf, 'a'));
-    ASSERT_EQ(test_buf + 1, STRCHR(test_buf, 'b'));
-    ASSERT_EQ(test_buf + 3, STRCHR(test_buf, '\xee'));
-    ASSERT_EQ(test_buf + 4, STRCHR(test_buf, 'c'));
-    ASSERT_EQ(test_buf + 5, STRCHR(test_buf, 0));
-    ASSERT_EQ(NULL, STRCHR(test_buf, 'd'));
+    ASSERT_PTR_EQ(test_buf, STRCHR(test_buf, 'a'));
+    ASSERT_PTR_EQ(test_buf + 1, STRCHR(test_buf, 'b'));
+    ASSERT_PTR_EQ(test_buf + 3, STRCHR(test_buf, '\xee'));
+    ASSERT_PTR_EQ(test_buf + 4, STRCHR(test_buf, 'c'));
+    ASSERT_PTR_EQ(test_buf + 5, STRCHR(test_buf, 0));
+    ASSERT_PTR_EQ(NULL, STRCHR(test_buf, 'd'));
 
     END_TEST(string);
 }
@@ -515,15 +515,15 @@ TEST(string, strrchr)
     char *(* volatile STRRCHR)(const char *s, int c) = strrchr;
 
     memset(test_buf, 0, sizeof(test_buf));
-    ASSERT_EQ(test_buf, STRRCHR(test_buf, 0));
-    ASSERT_EQ(NULL, STRRCHR(test_buf, 'a'));
+    ASSERT_PTR_EQ(test_buf, STRRCHR(test_buf, 0));
+    ASSERT_PTR_EQ(NULL, STRRCHR(test_buf, 'a'));
     strcpy(test_buf, "abb\xee""c");
-    ASSERT_EQ(test_buf, STRRCHR(test_buf, 'a'));
-    ASSERT_EQ(test_buf + 2, STRRCHR(test_buf, 'b'));
-    ASSERT_EQ(test_buf + 3, STRRCHR(test_buf, '\xee'));
-    ASSERT_EQ(test_buf + 4, STRRCHR(test_buf, 'c'));
-    ASSERT_EQ(test_buf + 5, STRRCHR(test_buf, 0));
-    ASSERT_EQ(NULL, STRRCHR(test_buf, 'd'));
+    ASSERT_PTR_EQ(test_buf, STRRCHR(test_buf, 'a'));
+    ASSERT_PTR_EQ(test_buf + 2, STRRCHR(test_buf, 'b'));
+    ASSERT_PTR_EQ(test_buf + 3, STRRCHR(test_buf, '\xee'));
+    ASSERT_PTR_EQ(test_buf + 4, STRRCHR(test_buf, 'c'));
+    ASSERT_PTR_EQ(test_buf + 5, STRRCHR(test_buf, 0));
+    ASSERT_PTR_EQ(NULL, STRRCHR(test_buf, 'd'));
 
     END_TEST(string);
 }
@@ -586,22 +586,22 @@ TEST(string, strpbrk)
 
     char test_buf[100];
     strcpy(test_buf, "");
-    ASSERT_EQ(NULL, STRPBRK(test_buf, ""));
-    ASSERT_EQ(NULL, STRPBRK(test_buf, "x"));
-    ASSERT_EQ(NULL, STRPBRK(test_buf, "xyz"));
+    ASSERT_PTR_EQ(NULL, STRPBRK(test_buf, ""));
+    ASSERT_PTR_EQ(NULL, STRPBRK(test_buf, "x"));
+    ASSERT_PTR_EQ(NULL, STRPBRK(test_buf, "xyz"));
     strcpy(test_buf, "abc");
-    ASSERT_EQ(NULL, STRPBRK(test_buf, ""));
-    ASSERT_EQ(NULL, STRPBRK(test_buf, "x"));
-    ASSERT_EQ(test_buf + 2, STRPBRK(test_buf, "c"));
-    ASSERT_EQ(test_buf + 1, STRPBRK(test_buf, "b"));
-    ASSERT_EQ(test_buf, STRPBRK(test_buf, "a"));
-    ASSERT_EQ(test_buf, STRPBRK(test_buf, "ba"));
-    ASSERT_EQ(test_buf, STRPBRK(test_buf, "abc"));
-    ASSERT_EQ(test_buf + 1, STRPBRK(test_buf, "bc"));
-    ASSERT_EQ(test_buf, STRPBRK(test_buf, "ca"));
-    ASSERT_EQ(NULL, STRPBRK(test_buf, "xyz"));
-    ASSERT_EQ(test_buf, STRPBRK(test_buf, "ayz"));
-    ASSERT_EQ(test_buf + 1, STRPBRK(test_buf, "xyb"));
+    ASSERT_PTR_EQ(NULL, STRPBRK(test_buf, ""));
+    ASSERT_PTR_EQ(NULL, STRPBRK(test_buf, "x"));
+    ASSERT_PTR_EQ(test_buf + 2, STRPBRK(test_buf, "c"));
+    ASSERT_PTR_EQ(test_buf + 1, STRPBRK(test_buf, "b"));
+    ASSERT_PTR_EQ(test_buf, STRPBRK(test_buf, "a"));
+    ASSERT_PTR_EQ(test_buf, STRPBRK(test_buf, "ba"));
+    ASSERT_PTR_EQ(test_buf, STRPBRK(test_buf, "abc"));
+    ASSERT_PTR_EQ(test_buf + 1, STRPBRK(test_buf, "bc"));
+    ASSERT_PTR_EQ(test_buf, STRPBRK(test_buf, "ca"));
+    ASSERT_PTR_EQ(NULL, STRPBRK(test_buf, "xyz"));
+    ASSERT_PTR_EQ(test_buf, STRPBRK(test_buf, "ayz"));
+    ASSERT_PTR_EQ(test_buf + 1, STRPBRK(test_buf, "xyb"));
 
     END_TEST(string);
 }
@@ -614,20 +614,20 @@ TEST(string, strstr)
 
     char test_buf[100];
     strcpy(test_buf, "");
-    ASSERT_EQ(test_buf, STRSTR(test_buf, ""));
-    ASSERT_EQ(NULL, STRSTR(test_buf, "a"));
-    ASSERT_EQ(NULL, STRSTR(test_buf, "abc"));
+    ASSERT_PTR_EQ(test_buf, STRSTR(test_buf, ""));
+    ASSERT_PTR_EQ(NULL, STRSTR(test_buf, "a"));
+    ASSERT_PTR_EQ(NULL, STRSTR(test_buf, "abc"));
     strcpy(test_buf, "aababcd");
-    ASSERT_EQ(test_buf, STRSTR(test_buf, ""));
-    ASSERT_EQ(test_buf, STRSTR(test_buf, "a"));
-    ASSERT_EQ(test_buf, STRSTR(test_buf, "aa"));
-    ASSERT_EQ(test_buf + 1, STRSTR(test_buf, "ab"));
-    ASSERT_EQ(test_buf + 3, STRSTR(test_buf, "abc"));
-    ASSERT_EQ(test_buf + 3, STRSTR(test_buf, "abcd"));
-    ASSERT_EQ(NULL, STRSTR(test_buf, "abcde"));
-    ASSERT_EQ(test_buf + 5, STRSTR(test_buf, "cd"));
-    ASSERT_EQ(test_buf + 6, STRSTR(test_buf, "d"));
-    ASSERT_EQ(NULL, STRSTR(test_buf, "e"));
+    ASSERT_PTR_EQ(test_buf, STRSTR(test_buf, ""));
+    ASSERT_PTR_EQ(test_buf, STRSTR(test_buf, "a"));
+    ASSERT_PTR_EQ(test_buf, STRSTR(test_buf, "aa"));
+    ASSERT_PTR_EQ(test_buf + 1, STRSTR(test_buf, "ab"));
+    ASSERT_PTR_EQ(test_buf + 3, STRSTR(test_buf, "abc"));
+    ASSERT_PTR_EQ(test_buf + 3, STRSTR(test_buf, "abcd"));
+    ASSERT_PTR_EQ(NULL, STRSTR(test_buf, "abcde"));
+    ASSERT_PTR_EQ(test_buf + 5, STRSTR(test_buf, "cd"));
+    ASSERT_PTR_EQ(test_buf + 6, STRSTR(test_buf, "d"));
+    ASSERT_PTR_EQ(NULL, STRSTR(test_buf, "e"));
 
     END_TEST(string);
 }
@@ -643,23 +643,23 @@ TEST(string, strtok)
 
     memcpy(test_buf, "The quick*brown  fox\0j", 22);
     ret = STRTOK(test_buf, " *");
-    ASSERT_EQ(test_buf, ret);
+    ASSERT_PTR_EQ(test_buf, ret);
     ASSERT_EQ(0, strcmp(ret, "The"));
     ASSERT_EQ(0, memcmp(test_buf, "The\0quick*brown  fox\0j", 22));
     ret = STRTOK(NULL, " *");
-    ASSERT_EQ(test_buf + 4, ret);
+    ASSERT_PTR_EQ(test_buf + 4, ret);
     ASSERT_EQ(0, strcmp(ret, "quick"));
     ASSERT_EQ(0, memcmp(test_buf, "The\0quick\0brown  fox\0j", 22));
     ret = STRTOK(NULL, " *");
-    ASSERT_EQ(test_buf + 10, ret);
+    ASSERT_PTR_EQ(test_buf + 10, ret);
     ASSERT_EQ(0, strcmp(ret, "brown"));
     ASSERT_EQ(0, memcmp(test_buf, "The\0quick\0brown\0 fox\0j", 22));
     ret = STRTOK(NULL, " *");
-    ASSERT_EQ(test_buf + 17, ret);
+    ASSERT_PTR_EQ(test_buf + 17, ret);
     ASSERT_EQ(0, strcmp(ret, "fox"));
     ASSERT_EQ(0, memcmp(test_buf, "The\0quick\0brown\0 fox\0j", 22));
     ret = STRTOK(NULL, " *");
-    ASSERT_EQ(NULL, ret);
+    ASSERT_PTR_EQ(NULL, ret);
     ASSERT_EQ(0, memcmp(test_buf, "The\0quick\0brown\0 fox\0j", 22));
 
     /* Do the test from the C standard */
@@ -675,7 +675,7 @@ TEST(string, strtok)
     ASSERT_EQ(0, strcmp(ret, "c"));
     ret = STRTOK(NULL, "?");
     /* t is a null pointer */
-    ASSERT_EQ(NULL, ret);
+    ASSERT_PTR_EQ(NULL, ret);
 
     END_TEST(string);
 }

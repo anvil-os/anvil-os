@@ -14,7 +14,7 @@ void __test_harness_print_string(const char *str)
 	}
 }
 
-void __test_harness_print_num(unsigned num)
+void __test_harness_print_num(long long num)
 {
 	if (num == 0)
 	{
@@ -34,7 +34,7 @@ void __test_harness_print_num(unsigned num)
 	__test_harness_print_string(p);
 }
 
-void __test_harness_print_error(const char *file, int line, const char *actual_str, long actual, long expected)
+void __test_harness_print_error(const char *file, int line, const char *actual_str, long long actual, long long expected)
 {
 	__test_harness_print_string(file);
 	__test_harness_print_string("(");

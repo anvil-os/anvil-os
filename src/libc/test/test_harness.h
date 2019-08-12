@@ -9,7 +9,7 @@
     { \
          if (!((__expected) == (__actual))) \
          { \
-			 __test_harness_print_error(__FILE__, __LINE__, #__actual, (long)(__actual)  , (long)(__expected)); \
+             __test_harness_print_error(__FILE__, __LINE__, #__actual, (__actual), (__expected)); \
              return 1; \
          } \
     } while (0)
@@ -19,10 +19,21 @@
     { \
          if (((__expected) == (__actual))) \
          { \
-             __test_harness_print_error(__FILE__, __LINE__, #__actual, (long)(__actual)  , (long)(__expected)); \
+             __test_harness_print_error(__FILE__, __LINE__, #__actual, (__actual), (__expected)); \
              return 1; \
          } \
     } while (0)
+
+#define ASSERT_PTR_EQ(__expected, __actual)    \
+    do \
+    { \
+         if (!((__expected) == (__actual))) \
+         { \
+             __test_harness_print_error(__FILE__, __LINE__, #__actual, (long)(__actual), (long)(__expected)); \
+             return 1; \
+         } \
+    } while (0)
+
 
 #define END_TEST(__group) {++ __group ## _pass_cnt;}   return 0; }
 
@@ -51,7 +62,7 @@
     return 0;
 
 void __test_harness_print_string(const char *str);
-void __test_harness_print_error(const char *file, int line, const char *msg, long actual, long expected);
+void __test_harness_print_error(const char *file, int line, const char *msg, long long actual, long long expected);
 void __test_harness_print_group_summary(const char *group, int pass_cnt, int fail_cnt);
 
 #endif /* TEST_HARNESS_H */
