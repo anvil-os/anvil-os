@@ -28,4 +28,6 @@ unsigned long long _Anvil_strtoll(const char *restrict str,
                     int base, long long min,
                     unsigned long long max);
 
+extern int _Errno;
+
 #endif /* _SYS_ANVIL_INTERNAL_H_INCLUDED */

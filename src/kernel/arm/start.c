@@ -1,6 +1,8 @@
 
 #include "debug.h"
 
+#include <string.h>
+
 extern char __etext__;
 extern char __sdata__;
 extern char __edata__;
@@ -13,25 +15,11 @@ void SystemInit();
 
 void start()
 {
-    int n;
-    char *d, *s;
-
     /* Copy data from ROM to RAM */
-    n = &__edata__ - &__sdata__;
-    s = &__erom__;
-    d = &__sdata__;
-    while (n--)
-    {
-    	*d++ = *s++;
-    }
+    memcpy(&__sdata__, &__erom__, &__edata__ - &__sdata__);
 
     /* Clear the BSS */
-    n = &__ebss__ - &__sbss__;
-    d = &__sbss__;
-    while (n--)
-    {
-    	*d++ = 0;
-    }
+    memset(&__sbss__, 0, &__ebss__ - &__sbss__);
 
     SystemInit();
 

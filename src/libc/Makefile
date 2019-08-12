@@ -8,6 +8,6 @@ MODULE_CFLAGS :=					\
 
 LIBRARY := libc.a
 MODULE_CFLAGS += -static
-DIRS := string ctype stdlib test
+DIRS := string ctype stdlib errno test
 
 include $(PROJECT_ROOT)/make/default.mk

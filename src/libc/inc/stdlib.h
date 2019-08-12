@@ -11,7 +11,4 @@ long long int strtoll(const char *restrict __nptr, char **restrict __endptr, int
 unsigned long int strtoul(const char *restrict __nptr, char **restrict __endptr, int __base);
 unsigned long long int strtoull(const char *restrict __nptr, char **restrict __endptr, int __base);
 
-#define EINVAL 2
-#define ERANGE 3
-
 #endif /* _STDLIB_H_INCLUDED */

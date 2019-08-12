@@ -2,8 +2,7 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <ctype.h>
-
-int errno;
+#include <errno.h>
 
 unsigned long long _Anvil_strtoll(
                     const char *restrict nptr,
