@@ -30,7 +30,7 @@ unsigned long long _Anvil_strtoll(const char *restrict __str,
 
 #include <stdarg.h>
 
-int _Anvil_printf(const char *__fmt, va_list __ap, int (*__puts)(void *, const char *, int), void *__arg);
+int _Anvil_printf(const char *__fmt, va_list __ap, int (*__nputs)(void *, const char *, int), void *__arg);
 
 extern int _Errno;
 
