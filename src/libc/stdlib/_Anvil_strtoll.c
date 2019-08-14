@@ -4,7 +4,7 @@
 #include <ctype.h>
 #include <errno.h>
 
-unsigned long long _Anvil_strtoll(
+long long _Anvil_strtoll(
                     const char *restrict nptr,
                     char **restrict endptr,
                     int base,

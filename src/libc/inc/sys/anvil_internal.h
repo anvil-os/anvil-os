@@ -23,7 +23,7 @@
 #define _ANVIL_CTYPE_RANGE_FIX(__c) do { c = (c == -1 ? 0 : (unsigned char)c + 1); } while (0);
 //#define _ANVIL_CTYPE_RANGE_FIX(__c) do { ++c; } while (0);
 
-unsigned long long _Anvil_strtoll(const char *restrict __str,
+long long _Anvil_strtoll(const char *restrict __str,
                     char **restrict __endptr,
                     int __base, long long __min,
                     unsigned long long __max);
