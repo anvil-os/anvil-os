@@ -53,11 +53,13 @@ TEST(stdio_printf, fmt_s)
 
     struct test_point test_vector[] =
     {
-//        { "abc",   3, "%s",   "abc"  },
-//        { "  abc", 5, "%5s",   "abc" },
-//        { "abc  ", 5, "%-5s", "abc"  },
-//        { "ab",    2, "%.2s", "abc"  },
-//        { "   ab", 5, "%5.2s", "abc" },
+        { "abc",   3, "%s",     "abc"  },
+        { "  abc", 5, "%5s",    "abc" },
+        { "ab",    2, "%.2s",   "abc"  },
+        { "   ab", 5, "%5.2s",  "abc" },
+        { "abc  ", 5, "%-5s",   "abc"  },
+        { "ab",    2, "%-.2s",  "abc"  },
+        { "ab   ", 5, "%-5.2s", "abc" },
         { 0 }
     };
 

@@ -2,6 +2,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <limits.h>
+#include <string.h>
 
 #define FLAG_LEFT_JUSTIFY       (1)
 #define FLAG_SHOW_SIGN          (2)
@@ -12,6 +13,9 @@
 #define FLAG_SHORT              (64)
 #define FLAG_LONG               (128)
 #define FLAG_LONGLONG           (256)
+
+static int print_str(int (*func)(void *, const char *, int ), void *arg, va_list *ap, int width, int prec, int flags);
+static const char *space = " ";
 
 int _Anvil_printf(const char *fmt, va_list ap, int (*nputs)(void *, const char *, int), void *arg)
 {
@@ -183,7 +187,10 @@ int _Anvil_printf(const char *fmt, va_list ap, int (*nputs)(void *, const char *
              case 'a':
              case 'A':
              case 'c':
+                 break;
              case 's':
+                 chars_printed += print_str(nputs, arg, &ap, field_width, precision, flags);
+                 break;
              case 'p':
              case 'n':
                  break;
@@ -195,5 +202,62 @@ int _Anvil_printf(const char *fmt, va_list ap, int (*nputs)(void *, const char *
          ++fmt;
     }
 
-    return 0;
+    return chars_printed;
+}
+
+static int print_str(int (*nputs)(void *, const char *, int ), void *arg, va_list *ap, int field_width, int precision, int flags)
+{
+    /* For a string:
+     *  field_width is minimum field width
+     *  precision is the maximum chars that can be printed
+     *  FLAG_LEFT_JUSTIFY is the only flag that matters
+     *  Todo: FLAG_LONG is not yet supported
+     */
+
+    int chars_printed = 0;
+    int string_len;
+    int pad_len;
+
+    const char *p_str = va_arg(*ap, const char *);
+
+    /* Assume we will print the entire string */
+    string_len = strlen(p_str);
+
+    /* If a precision is given we limit to that */
+    if (string_len > precision)
+    {
+        string_len = precision;
+    }
+
+    /* We need to pad out to the field width */
+    if (field_width > string_len)
+    {
+        pad_len = field_width - string_len;
+    }
+    else
+    {
+        pad_len = 0;
+    }
+
+    if (flags & FLAG_LEFT_JUSTIFY)
+    {
+        /* Print the string with trailing spaces */
+        chars_printed += nputs(arg, p_str, string_len);
+        while (pad_len--)
+        {
+            chars_printed += nputs(arg, space, 1);
+        }
+    }
+    else
+    {
+        /* If right justified print leading spaces */
+        while (pad_len--)
+        {
+            chars_printed += nputs(arg, space, 1);
+        }
+        /* Print the string */
+        chars_printed += nputs(arg, p_str, string_len);
+    }
+
+    return chars_printed;
 }
