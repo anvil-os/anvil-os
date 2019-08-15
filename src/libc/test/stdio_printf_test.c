@@ -409,10 +409,73 @@ TEST(stdio_printf, fmt_llu)
     END_TEST(stdio_printf);
 }
 
+TEST(stdio_printf, fmt_x)
+{
+    /* SPRINTF */
+    int (* volatile SPRINTF)(char *restrict s, const char *restrict format, ...) = sprintf;
+    char buf[100];
+
+    struct test_point
+    {
+        char *output;
+        int ret;
+        char *fmt;
+        unsigned arg;
+    };
+
+    struct test_point test_vector[] =
+    {
+        { "0",           1, "%x", 0 },
+        { "12a",         3, "%x", 0x12a },
+        { "ffffffff",    8, "%x", 0xffffffff },
+        { "12A",         3, "%X", 0x12a },
+        { "FFFFFFFF",    8, "%X", 0xffffffff },
+        { 0 }
+    };
+
+    for (int i=0; test_vector[i].output; ++i)
+    {
+        ASSERT_EQ(test_vector[i].ret, SPRINTF(buf, test_vector[i].fmt, test_vector[i].arg));
+        ASSERT_EQ(0, strcmp(buf, test_vector[i].output));
+    }
+    END_TEST(stdio_printf);
+}
+
+TEST(stdio_printf, fmt_o)
+{
+    /* SPRINTF */
+    int (* volatile SPRINTF)(char *restrict s, const char *restrict format, ...) = sprintf;
+    char buf[100];
+
+    struct test_point
+    {
+        char *output;
+        int ret;
+        char *fmt;
+        unsigned arg;
+    };
+
+    struct test_point test_vector[] =
+    {
+        { "0",            1, "%o", 0 },
+        { "123",          3, "%o", 0123 },
+        { "37777777777", 11, "%o", 0xffffffff },
+        { 0 }
+    };
+
+    for (int i=0; test_vector[i].output; ++i)
+    {
+        ASSERT_EQ(test_vector[i].ret, SPRINTF(buf, test_vector[i].fmt, test_vector[i].arg));
+        ASSERT_EQ(0, strcmp(buf, test_vector[i].output));
+    }
+    END_TEST(stdio_printf);
+}
+
 int stdio_printf_test()
 {
     CALL_TEST(stdio_printf, fmt_none);
     CALL_TEST(stdio_printf, fmt_s);
+
     CALL_TEST(stdio_printf, fmt_hhd);
     CALL_TEST(stdio_printf, fmt_hhu);
     CALL_TEST(stdio_printf, fmt_hd);
@@ -423,6 +486,9 @@ int stdio_printf_test()
     CALL_TEST(stdio_printf, fmt_lu);
     CALL_TEST(stdio_printf, fmt_lld);
     CALL_TEST(stdio_printf, fmt_llu);
+
+    CALL_TEST(stdio_printf, fmt_x);
+    CALL_TEST(stdio_printf, fmt_o);
 
     END_TEST_GROUP(stdio_printf);
 }

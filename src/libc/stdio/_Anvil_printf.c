@@ -14,9 +14,14 @@
 #define FLAG_LONG               (128)
 #define FLAG_LONGLONG           (256)
 #define FLAG_UNSIGNED           (512)
+#define FLAG_OCTAL              (1024)
+#define FLAG_HEX                (2048)
+#define FLAG_UPPER              (4096)
 
 static int print_str(int (*nputs)(void *, const char *, int ), void *arg, va_list *ap, int field_width, int precision, int flags);
 static int print_num(int (*nputs)(void *, const char *, int ), void *arg, va_list *ap, int field_width, int precision, int flags);
+static const char lower_digit[] = "0123456789abcdef";
+static const char upper_digit[] = "0123456789ABCDEF";
 static const char space[] = " ";
 
 int _Anvil_printf(const char *fmt, va_list ap, int (*nputs)(void *, const char *, int), void *arg)
@@ -183,12 +188,17 @@ int _Anvil_printf(const char *fmt, va_list ap, int (*nputs)(void *, const char *
                  chars_printed += print_num(nputs, arg, &ap, field_width, precision, flags);
                  break;
              case 'o':
+                 chars_printed += print_num(nputs, arg, &ap, field_width, precision, flags | FLAG_UNSIGNED | FLAG_OCTAL);
                  break;
              case 'u':
                  chars_printed += print_num(nputs, arg, &ap, field_width, precision, flags | FLAG_UNSIGNED);
                  break;
              case 'x':
+                 chars_printed += print_num(nputs, arg, &ap, field_width, precision, flags | FLAG_UNSIGNED | FLAG_HEX);
+                 break;
              case 'X':
+                 chars_printed += print_num(nputs, arg, &ap, field_width, precision, flags | FLAG_UNSIGNED | FLAG_HEX | FLAG_UPPER);
+                 break;
              case 'f':
              case 'F':
              case 'e':
@@ -281,6 +291,8 @@ static int print_num(int (*nputs)(void *, const char *, int ), void *arg, va_lis
     char *p_num;
     unsigned long long ullval;
     int neg = 0;
+    unsigned radix;
+    const char *digit;
 
     /****************************************
      * Read value depending on the length
@@ -343,14 +355,33 @@ static int print_num(int (*nputs)(void *, const char *, int ), void *arg, va_lis
         }
     }
 
+    /****************************************
+     * Set the radix
+     ***************************************/
+    if (flags & FLAG_HEX)
+    {
+        radix = 16;
+    }
+    else if (flags & FLAG_OCTAL)
+    {
+        radix = 8;
+    }
+    else
+    {
+        radix = 10;
+    }
+
+    /****************************************
+     * Convert the number to a string
+     ***************************************/
+    digit = flags & FLAG_UPPER ? upper_digit : lower_digit;
+
     p_num = &buf[20];
     num_len = 0;
     while (ullval || num_len == 0)
     {
-        int dig = ullval % 10u;
-        char c = dig + '0';
-        *--p_num = c;
-        ullval = ullval / 10u;
+        *--p_num = digit[ullval % radix];
+        ullval /= radix;
         ++num_len;
     }
     if (neg)
