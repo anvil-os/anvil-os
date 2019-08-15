@@ -14,8 +14,9 @@
 #define FLAG_LONG               (128)
 #define FLAG_LONGLONG           (256)
 
-static int print_str(int (*func)(void *, const char *, int ), void *arg, va_list *ap, int width, int prec, int flags);
-static const char *space = " ";
+static int print_str(int (*nputs)(void *, const char *, int ), void *arg, va_list *ap, int field_width, int precision, int flags);
+static int print_num(int (*nputs)(void *, const char *, int ), void *arg, va_list *ap, int field_width, int precision, int flags);
+static const char space[] = " ";
 
 int _Anvil_printf(const char *fmt, va_list ap, int (*nputs)(void *, const char *, int), void *arg)
 {
@@ -174,6 +175,8 @@ int _Anvil_printf(const char *fmt, va_list ap, int (*nputs)(void *, const char *
         {
              case 'd':
              case 'i':
+                 chars_printed += print_num(nputs, arg, &ap, field_width, precision, flags);
+                 break;
              case 'o':
              case 'u':
              case 'x':
@@ -258,6 +261,31 @@ static int print_str(int (*nputs)(void *, const char *, int ), void *arg, va_lis
         /* Print the string */
         chars_printed += nputs(arg, p_str, string_len);
     }
+
+    return chars_printed;
+}
+
+static int print_num(int (*nputs)(void *, const char *, int ), void *arg, va_list *ap, int field_width, int precision, int flags)
+{
+    int chars_printed = 0;
+    int num_len;
+    char buf[20];
+    char *p_num;
+
+    long long llval = (long long)va_arg(*ap, int);
+
+    p_num = &buf[20];
+    num_len = 0;
+    while (llval)
+    {
+        int dig = llval % 10;
+        char c = dig + '0';
+        *--p_num = c;
+        llval = llval / 10;
+        ++num_len;
+    }
+
+    chars_printed += nputs(arg, p_num, num_len);
 
     return chars_printed;
 }
