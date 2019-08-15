@@ -471,6 +471,39 @@ TEST(stdio_printf, fmt_o)
     END_TEST(stdio_printf);
 }
 
+TEST(stdio_printf, fmt_sign)
+{
+    /* SPRINTF */
+    int (* volatile SPRINTF)(char *restrict s, const char *restrict format, ...) = sprintf;
+    char buf[100];
+
+    struct test_point
+    {
+        char *output;
+        int ret;
+        char *fmt;
+        int arg;
+    };
+
+    struct test_point test_vector[] =
+    {
+        { "123",       3, "%d", 123 },
+        { "-123",      4, "%d", -123 },
+        { " 123",      4, "% d", 123 },
+        { "-123",      4, "% d", -123 },
+        { "+123",      4, "%+d", 123 },
+        { "-123",      4, "%+d", -123 },
+        { 0 }
+    };
+
+    for (int i=0; test_vector[i].output; ++i)
+    {
+        ASSERT_EQ(test_vector[i].ret, SPRINTF(buf, test_vector[i].fmt, test_vector[i].arg));
+        ASSERT_EQ(0, strcmp(buf, test_vector[i].output));
+    }
+    END_TEST(stdio_printf);
+}
+
 int stdio_printf_test()
 {
     CALL_TEST(stdio_printf, fmt_none);
@@ -489,6 +522,7 @@ int stdio_printf_test()
 
     CALL_TEST(stdio_printf, fmt_x);
     CALL_TEST(stdio_printf, fmt_o);
+    CALL_TEST(stdio_printf, fmt_sign);
 
     END_TEST_GROUP(stdio_printf);
 }

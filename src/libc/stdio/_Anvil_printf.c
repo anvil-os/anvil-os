@@ -293,6 +293,7 @@ static int print_num(int (*nputs)(void *, const char *, int ), void *arg, va_lis
     int neg = 0;
     unsigned radix;
     const char *digit;
+    char sign_char;
 
     /****************************************
      * Read value depending on the length
@@ -384,10 +385,34 @@ static int print_num(int (*nputs)(void *, const char *, int ), void *arg, va_lis
         ullval /= radix;
         ++num_len;
     }
-    if (neg)
+
+    /****************************************
+     * The sign char
+     ***************************************/
+    sign_char = 0;
+
+    if (!(flags & FLAG_UNSIGNED))
     {
-        *--p_num = '-';
-        ++num_len;
+        if (neg)
+        {
+            sign_char = '-';
+        }
+        else
+        {
+            if (flags & FLAG_SHOW_SIGN)
+            {
+                sign_char = '+';
+            }
+            else if (flags & FLAG_SPACE)
+            {
+                sign_char = ' ';
+            }
+        }
+    }
+
+    if (sign_char)
+    {
+        chars_printed += nputs(arg, &sign_char, 1);
     }
 
     chars_printed += nputs(arg, p_num, num_len);
