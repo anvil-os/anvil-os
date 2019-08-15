@@ -13,6 +13,7 @@
 #define FLAG_SHORT              (64)
 #define FLAG_LONG               (128)
 #define FLAG_LONGLONG           (256)
+#define FLAG_UNSIGNED           (512)
 
 static int print_str(int (*nputs)(void *, const char *, int ), void *arg, va_list *ap, int field_width, int precision, int flags);
 static int print_num(int (*nputs)(void *, const char *, int ), void *arg, va_list *ap, int field_width, int precision, int flags);
@@ -20,8 +21,6 @@ static const char space[] = " ";
 
 int _Anvil_printf(const char *fmt, va_list ap, int (*nputs)(void *, const char *, int), void *arg)
 {
-    ap = ap;
-
     int chars_printed = 0;
 
     while (*fmt)
@@ -143,21 +142,27 @@ int _Anvil_printf(const char *fmt, va_list ap, int (*nputs)(void *, const char *
         switch (*fmt)
         {
             case 'h':
-                flags |= FLAG_SHORT;
                 ++fmt;
                 if (*fmt == 'h')
                 {
                     flags |= FLAG_CHAR;
                     ++fmt;
                 }
+                else
+                {
+                    flags |= FLAG_SHORT;
+                }
                 break;
             case 'l':
-                flags |= FLAG_LONG;
                 ++fmt;
                 if (*fmt == 'l')
                 {
                     flags |= FLAG_LONGLONG;
                     ++fmt;
+                }
+                else
+                {
+                    flags |= FLAG_LONG;
                 }
                 break;
             case 'j':
@@ -178,7 +183,10 @@ int _Anvil_printf(const char *fmt, va_list ap, int (*nputs)(void *, const char *
                  chars_printed += print_num(nputs, arg, &ap, field_width, precision, flags);
                  break;
              case 'o':
+                 break;
              case 'u':
+                 chars_printed += print_num(nputs, arg, &ap, field_width, precision, flags | FLAG_UNSIGNED);
+                 break;
              case 'x':
              case 'X':
              case 'f':
@@ -271,17 +279,83 @@ static int print_num(int (*nputs)(void *, const char *, int ), void *arg, va_lis
     int num_len;
     char buf[20];
     char *p_num;
+    unsigned long long ullval;
+    int neg = 0;
 
-    long long llval = (long long)va_arg(*ap, int);
+    /****************************************
+     * Read value depending on the length
+     * modifier and sign
+     ***************************************/
+    if (flags & FLAG_UNSIGNED)
+    {
+        if (flags & FLAG_CHAR)
+        {
+            ullval = (unsigned char)va_arg(*ap, unsigned int);
+        }
+        else if (flags & FLAG_SHORT)
+        {
+            ullval = (unsigned short)va_arg(*ap, unsigned int);
+        }
+        else if (flags & FLAG_LONG)
+        {
+            ullval = va_arg(*ap, unsigned long);
+        }
+        else if (flags & FLAG_LONGLONG)
+        {
+            ullval = va_arg(*ap, unsigned long long);
+        }
+        else
+        {
+            ullval = va_arg(*ap, unsigned int);
+        }
+    }
+    else
+    {
+        long long llval;
+        if (flags & FLAG_CHAR)
+        {
+            llval = (char)va_arg(*ap, int);
+        }
+        else if (flags & FLAG_SHORT)
+        {
+            llval = (short)va_arg(*ap, int);
+        }
+        else if (flags & FLAG_LONG)
+        {
+            llval = va_arg(*ap, long);
+        }
+        else if (flags & FLAG_LONGLONG)
+        {
+            llval = va_arg(*ap, long long);
+        }
+        else
+        {
+            llval = va_arg(*ap, int);
+        }
+        if (llval < 0)
+        {
+            ullval = -llval;
+            neg = 1;
+        }
+        else
+        {
+            ullval = llval;
+        }
+    }
 
     p_num = &buf[20];
     num_len = 0;
-    while (llval)
+    while (ullval || num_len == 0)
     {
-        int dig = llval % 10;
+        int dig = ullval % 10u;
         char c = dig + '0';
         *--p_num = c;
-        llval = llval / 10;
+        ullval = ullval / 10u;
+        ++num_len;
+    }
+    if (neg)
+    {
+        *--p_num = '-';
         ++num_len;
     }
 
