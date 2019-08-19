@@ -430,6 +430,9 @@ TEST(stdio_printf, fmt_x)
         { "ffffffff",    8, "%x", 0xffffffff },
         { "12A",         3, "%X", 0x12a },
         { "FFFFFFFF",    8, "%X", 0xffffffff },
+        { "123456",      6, "%X", 0x123456 },
+        { "00123456",    8, "%08X", 0x123456 },
+//        { "0x123456",    8, "%#08X", 0x123456 },
         { 0 }
     };
 
@@ -504,6 +507,47 @@ TEST(stdio_printf, fmt_sign)
     END_TEST(stdio_printf);
 }
 
+TEST(stdio_printf, fmt_precision)
+{
+    /* SPRINTF */
+    int (* volatile SPRINTF)(char *restrict s, const char *restrict format, ...) = sprintf;
+    char buf[100];
+
+    struct test_point
+    {
+        char *output;
+        int ret;
+        char *fmt;
+        int arg;
+    };
+
+    struct test_point test_vector[] =
+    {
+        { "0",  1, "%d", 0 },
+        { "",   0, "%.0", 0 },
+        { "      000123", 12, "%12.6d",    123 },
+        { "     -000123", 12, "%12.6d",   -123 },
+        { "      000123", 12, "% 12.6d",   123 },
+        { "     -000123", 12, "% 12.6d",  -123 },
+        { "     +000123", 12, "%+12.6d",   123 },
+        { "     -000123", 12, "%+12.6d",  -123 },
+        { "000123      ", 12, "%-12.6d",   123 },
+        { "-000123     ", 12, "%-12.6d",  -123 },
+        { " 000123     ", 12, "%- 12.6d",  123 },
+        { "-000123     ", 12, "%- 12.6d", -123 },
+        { "+000123     ", 12, "%-+12.6d",  123 },
+        { "-000123     ", 12, "%-+12.6d", -123 },
+        { 0 }
+    };
+
+    for (int i=0; test_vector[i].output; ++i)
+    {
+        ASSERT_EQ(test_vector[i].ret, SPRINTF(buf, test_vector[i].fmt, test_vector[i].arg));
+        ASSERT_EQ(0, strcmp(buf, test_vector[i].output));
+    }
+    END_TEST(stdio_printf);
+}
+
 int stdio_printf_test()
 {
     CALL_TEST(stdio_printf, fmt_none);
@@ -523,6 +567,7 @@ int stdio_printf_test()
     CALL_TEST(stdio_printf, fmt_x);
     CALL_TEST(stdio_printf, fmt_o);
     CALL_TEST(stdio_printf, fmt_sign);
+    CALL_TEST(stdio_printf, fmt_precision);
 
     END_TEST_GROUP(stdio_printf);
 }

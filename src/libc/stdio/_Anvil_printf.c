@@ -23,6 +23,7 @@ static int print_num(int (*nputs)(void *, const char *, int ), void *arg, va_lis
 static const char lower_digit[] = "0123456789abcdef";
 static const char upper_digit[] = "0123456789ABCDEF";
 static const char space[] = " ";
+static const char zero[] = "0";
 
 int _Anvil_printf(const char *fmt, va_list ap, int (*nputs)(void *, const char *, int), void *arg)
 {
@@ -294,6 +295,9 @@ static int print_num(int (*nputs)(void *, const char *, int ), void *arg, va_lis
     unsigned radix;
     const char *digit;
     char sign_char;
+    int prepend_width;
+    int padding_width;
+    const char *padding_char;
 
     /****************************************
      * Read value depending on the length
@@ -379,7 +383,7 @@ static int print_num(int (*nputs)(void *, const char *, int ), void *arg, va_lis
 
     p_num = &buf[20];
     num_len = 0;
-    while (ullval || num_len == 0)
+    while (ullval)
     {
         *--p_num = digit[ullval % radix];
         ullval /= radix;
@@ -410,12 +414,104 @@ static int print_num(int (*nputs)(void *, const char *, int ), void *arg, va_lis
         }
     }
 
+    /****************************************
+     * Was a precision supplied
+     ***************************************/
+    prepend_width = 0;
+
+    if (precision != INT_MAX)
+    {
+        /* Spec. says that if a precision is specified, the 0 flag is
+         * ignored. 0s will be used to pad out to the stated precision
+         * but spaces to the width.
+         */
+        flags &= ~FLAG_ZEROPAD;
+    }
+    else
+    {
+        /* The default precision for numbers is 1. */
+        precision = 1;
+    }
+    if (precision > num_len)
+    {
+        prepend_width = precision - num_len;
+    }
+
+    /****************************************
+     * The alternative flag
+     ***************************************/
+//    if (flags & FLAG_ALTERNATIVE)
+//    {
+//        if (radix == 16)
+//        {
+//            prepend_width -= 2;
+//            if (prepend_width < 0)
+//            {
+//                prepend_width = 0;
+//            }
+//        }
+//        else if (radix == 8)
+//        {
+//            if (!prepend_width)
+//            {
+//                ++prepend_width;
+//            }
+//        }
+//    }
+
+    /****************************************
+     * Pad to the width. Note that the ZEROPAD
+     * flag is ignored if we are left-justifying
+     ***************************************/
+    padding_char = space;
+
+    if (flags & FLAG_ZEROPAD && !(flags & FLAG_LEFT_JUSTIFY))
+    {
+        padding_char = zero;
+    }
+
+    padding_width = 0;
+    if (field_width > (sign_char ? 1 : 0) + prepend_width + num_len)
+    {
+        padding_width = field_width - (sign_char ? 1 : 0) - prepend_width - num_len;
+    }
+
+    /****************************************
+     * Print everything now
+     ***************************************/
+    if (!(flags & FLAG_LEFT_JUSTIFY))
+    {
+        while (padding_width--)
+        {
+            chars_printed += nputs(arg, padding_char, 1);
+        }
+    }
+
     if (sign_char)
     {
         chars_printed += nputs(arg, &sign_char, 1);
     }
 
+//    if ((flags & FLAG_ALTERNATIVE) && (radix == 16))
+//    {
+//        char hex_prefix[] = "0x";
+//        chars_printed += nputs(arg, hex_prefix, 2);
+//    }
+
+    while (prepend_width--)
+    {
+        chars_printed += nputs(arg, zero, 1);
+    }
+
     chars_printed += nputs(arg, p_num, num_len);
+
+    if (flags & FLAG_LEFT_JUSTIFY)
+    {
+        while (padding_width--)
+        {
+            chars_printed += nputs(arg, padding_char, 1);
+        }
+    }
 
     return chars_printed;
 }
