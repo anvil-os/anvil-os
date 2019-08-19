@@ -10,6 +10,10 @@ static int callback(__attribute__((unused)) void *dest, const char *str, int len
     for (n = 0; n < len; ++n)
     {
         debug_putc(str[n]);
+        if (str[n] == '\n')
+        {
+            debug_putc('\r');
+        }
     }
     return len;
 }
