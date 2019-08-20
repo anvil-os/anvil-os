@@ -2,6 +2,7 @@
 #include "debug.h"
 
 #include <string.h>
+#include <stdio.h>
 
 extern char __etext__;
 extern char __sdata__;
@@ -26,8 +27,81 @@ void start()
     main();
 }
 
+void NMI_Handler()
+{
+    printf("NMI_Handler\n");
+    while (1);
+}
+
+void HardFault_Handler()
+{
+    printf("HardFault_Handler\n");
+    while (1);
+}
+
+void MemManage_Handler()
+{
+    printf("MemManage_Handler\n");
+    while (1);
+}
+
+void BusFault_Handler()
+{
+    printf("BusFault_Handler\n");
+    while (1);
+}
+
+void UsageFault_Handler()
+{
+    printf("UsageFault_Handler\n");
+    while (1);
+}
+
+void SVC_Handler()
+{
+    printf("SVC_Handler\n");
+    while (1);
+}
+
+void DebugMon_Handler()
+{
+    printf("DebugMon_Handler\n");
+    while (1);
+}
+
+void PendSV_Handler()
+{
+    printf("PendSV_Handler\n");
+    while (1);
+}
+
+int counter;
+
+void SysTick_Handler()
+{
+    if (++counter > 1000)
+    {
+        printf("SysTick_Handler\n");
+        counter = 0;
+    }
+}
+
 void __attribute__((section(".vector_tbl"))) (*(vector_table[]))() =
 {
     (void (*)())(0x20000000+8192),
-    start,
+    start, // Reset_Handler,
+    NMI_Handler,
+    HardFault_Handler,
+    MemManage_Handler,
+    BusFault_Handler,
+    UsageFault_Handler,
+    0,
+    0,
+    0,
+    0,
+    SVC_Handler,
+    DebugMon_Handler,
+    0,
+    PendSV_Handler,
+    SysTick_Handler,
 };

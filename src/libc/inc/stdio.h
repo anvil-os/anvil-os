@@ -25,4 +25,6 @@ int vsprintf(char *restrict __s, const char *restrict __format, va_list __arg);
 int snprintf(char *restrict __s, size_t __n, const char *restrict __format, ...);
 int vsnprintf(char *restrict __s, size_t __n, const char *restrict __format, va_list __arg);
 
+int puts(const char *__s);
+
 #endif /* _STDIO_H_INCLUDED */
