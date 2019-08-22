@@ -4,6 +4,8 @@
 #include <string.h>
 #include <stdio.h>
 
+#include "arm.h"
+
 extern char __etext__;
 extern char __sdata__;
 extern char __edata__;
@@ -13,6 +15,10 @@ extern char __erom__;
 
 int main();
 void SystemInit();
+void thread1();
+
+unsigned long stk1[256];
+unsigned long stk2[256];
 
 void start()
 {
@@ -60,7 +66,11 @@ void UsageFault_Handler()
 void SVC_Handler()
 {
     printf("SVC_Handler\n");
-    while (1);
+    /* Put the register image near the top of stack */
+    struct regpack *preg = ((struct regpack *)(stk1 + 256)) - 1;
+    preg->psr = 0x01000000;
+    preg->pc = (unsigned long)thread1;
+    psp_set((unsigned long)(stk1 + 256 - 8));
 }
 
 void DebugMon_Handler()
