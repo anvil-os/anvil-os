@@ -20,7 +20,7 @@ void thread1();
 unsigned long stk1[256];
 unsigned long stk2[256];
 
-void start()
+void start_func()
 {
     /* Copy data from ROM to RAM */
     memcpy(&__sdata__, &__erom__, &__edata__ - &__sdata__);
@@ -63,7 +63,7 @@ void UsageFault_Handler()
     while (1);
 }
 
-void SVC_Handler()
+void SVC_Handler1()
 {
     printf("SVC_Handler\n");
     /* Put the register image near the top of stack */
@@ -95,23 +95,3 @@ void SysTick_Handler()
         counter = 0;
     }
 }
-
-void __attribute__((section(".vector_tbl"))) (*(vector_table[]))() =
-{
-    (void (*)())(0x20000000+8192),
-    start, // Reset_Handler,
-    NMI_Handler,
-    HardFault_Handler,
-    MemManage_Handler,
-    BusFault_Handler,
-    UsageFault_Handler,
-    0,
-    0,
-    0,
-    0,
-    SVC_Handler,
-    DebugMon_Handler,
-    0,
-    PendSV_Handler,
-    SysTick_Handler,
-};

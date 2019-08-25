@@ -6,9 +6,18 @@
 #include <sys/anvil_internal.h>
 #endif
 
+#define __need_NULL
+#define __need_size_t
+#include <stddef.h>
+
 long int strtol(const char *restrict __nptr, char **restrict __endptr, int __base);
 long long int strtoll(const char *restrict __nptr, char **restrict __endptr, int __base);
 unsigned long int strtoul(const char *restrict __nptr, char **restrict __endptr, int __base);
 unsigned long long int strtoull(const char *restrict __nptr, char **restrict __endptr, int __base);
+
+void *calloc(size_t __nmemb, size_t __size);
+void free(void *__ptr);
+void *malloc(size_t __size);
+void *realloc(void *__ptr, size_t __size);
 
 #endif /* _STDLIB_H_INCLUDED */
