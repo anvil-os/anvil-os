@@ -25,7 +25,7 @@ SVC_Handler:
         push        {lr}
         bl          SVC_Handler1
         pop         {lr}
-        bx lr
+        bx          lr
 
 
 /****************************************

@@ -46,6 +46,16 @@ static __inline__ unsigned long psp_get()
     return reg;
 }
 
+static __inline__ void msp_set(unsigned long reg)
+{
+    __asm__ __volatile__ (
+            "msr msp, %0\n\t"
+            "isb\n\t"
+            :
+            : "r" (reg)
+    );
+}
+
 static __inline__ unsigned long msp_get()
 {
     unsigned long reg;
