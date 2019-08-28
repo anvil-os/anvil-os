@@ -11,7 +11,7 @@
 #define ERANGE      3
 
 #define EINVAL      4
-#define ERANGE      5
+#define ENOSYS      5
 
 #define errno _Errno
 
