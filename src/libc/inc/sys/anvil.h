@@ -6,6 +6,6 @@
 #include <sys/anvil_internal.h>
 #endif
 
-int anvil_threadcreate(void *(*__start_routine)(void*), void *__arg);
+int anvil_threadcreate(int (*__start_routine)(void*), void *__arg);
 
 #endif /* _SYS_ANVIL_H_INCLUDED */

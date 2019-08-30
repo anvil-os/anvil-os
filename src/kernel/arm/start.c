@@ -5,6 +5,7 @@
 #include <stdio.h>
 
 #include "arm.h"
+#include "thread.h"
 
 extern char __etext__;
 extern char __sdata__;
@@ -15,12 +16,6 @@ extern char __erom__;
 
 int main();
 void SystemInit();
-void thread2();
-void thread3();
-
-unsigned long stk1[256];
-unsigned long stk2[256];
-unsigned long stk3[256];
 
 int counter;
 int curr_thread;
@@ -38,13 +33,7 @@ void start_func()
 
     SystemInit();
 
-    /* Point the psp at the thread 1 stack */
-    psp_set((unsigned long)(stk1 + 256));
-    /* Point the msp at the kernel stack */
-    msp_set(0x20002000);
-
-    /* Set the thread mode stack to be the PSP */
-    control_set(0x00000002);
+    thread_init();
 
     /* Branch to main and it effectively becomes thread 1 */
     __asm__ __volatile__ ("b main");
@@ -78,24 +67,6 @@ void UsageFault_Handler()
 {
     printf("UsageFault_Handler\n");
     while (1);
-}
-
-void SVC_Handler1()
-{
-    printf("SVC_Handler\n");
-
-    /* Put the register image near the top of stack */
-    struct regpack *preg = ((struct regpack *)(stk2 + 256)) - 1;
-    preg->psr = 0x01000000;
-    preg->pc = (unsigned long)thread2;
-    psp2 = (unsigned long)(stk2 + 256 - 16);
-
-    preg = ((struct regpack *)(stk3 + 256)) - 1;
-    preg->psr = 0x01000000;
-    preg->pc = (unsigned long)thread3;
-    psp3 = (unsigned long)(stk3 + 256 - 16);
-
-    curr_thread = 1;
 }
 
 void DebugMon_Handler()

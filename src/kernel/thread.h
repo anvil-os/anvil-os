@@ -7,7 +7,11 @@
 struct thread_obj
 {
     int id;
-    struct regpack *reg;
+    //struct regpack *reg;
+    unsigned long *stk;
+    unsigned long psp;
 };
+
+void thread_init();
 
 #endif /* _THREAD_H_INCLUDED */

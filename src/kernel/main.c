@@ -36,7 +36,7 @@ int main()
 
     sys_tick_init();
 
-    thrd_create(&thr, thread2, NULL);
+    thrd_create(&thr, thread2, (void *)0x12345678);
 
     while (1)
     {

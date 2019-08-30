@@ -4,7 +4,7 @@
 
 int thrd_create(thrd_t *thr, thrd_start_t func, void *arg)
 {
-    int tid = anvil_threadcreate((void * (*)(void*))func, arg);
+    int tid = anvil_threadcreate(func, arg);
     if (tid < 0)
     {
         return thrd_error;

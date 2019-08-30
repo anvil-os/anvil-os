@@ -22,9 +22,19 @@ start:
         .type       SVC_Handler STT_FUNC
         .thumb_func
 SVC_Handler:
+        /* Some regs are saved automatically, save the rest now */
+        mrs         r0, psp
+        stmdb       r0!, {r4-r11}
+        msr         psp, r0
+
         push        {lr}
-        bl          SVC_Handler1
+        bl          syscall
         pop         {lr}
+
+        mrs         r0, psp
+        ldmia       r0!, {r4-r11}
+        msr         psp, r0
+
         bx          lr
 
 

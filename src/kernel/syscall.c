@@ -28,6 +28,8 @@ int kcall_nop(struct thread_obj *t)
     return 0;
 }
 
+extern struct thread_obj *pcurrt;
+
 void syscall()
 {
     /*
@@ -41,9 +43,13 @@ void syscall()
      * Additionally r0 holds the return value.
      */
 
-    struct thread_obj *currt = NULL;
-    int syscall = currt->reg->r0;
-    int err;
+    pcurrt->psp = psp_get();
+
+    struct regpack *reg = (struct regpack *)(pcurrt->psp);
+
+    int syscall = reg->r0;
+
+    printf("r0=%lx r1=%lx r2=%lx\n", reg->r0, reg->r1, reg->r2);
 
     /* Check that the syscall number is valid */
     if (syscall > __enum_kcall_nop)
@@ -52,13 +58,7 @@ void syscall()
         return;
     }
 
-    /* Assume no error */
-    RETVAL = 0;
+    RETVAL = SysCall[syscall](pcurrt);
 
-    err = SysCall[syscall](currt);
-
-    if (err)
-    {
-        RETVAL = err;
-    }
+    psp_set(pcurrt->psp);
 }
