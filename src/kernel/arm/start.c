@@ -5,6 +5,7 @@
 #include <stdio.h>
 
 #include "arm.h"
+#include "sched.h"
 #include "thread.h"
 
 extern char __etext__;
@@ -18,10 +19,6 @@ int main();
 void SystemInit();
 
 int counter;
-int curr_thread;
-unsigned long psp1;
-unsigned long psp2;
-unsigned long psp3;
 
 void start_func()
 {
@@ -33,6 +30,7 @@ void start_func()
 
     SystemInit();
 
+    sched_init();
     thread_init();
 
     /* Branch to main and it effectively becomes thread 1 */
@@ -83,30 +81,17 @@ void PendSV_Handler()
 
 void SysTick_Handler1()
 {
+    struct thread_obj *currt;
+
     if (++counter > 1000)
     {
-        printf("SysTick_Handler %d\n", curr_thread);
+        //printf("SysTick_Handler %x\n", sched_get_currt());
         counter = 0;
     }
-    if (curr_thread == 1)
-    {
-        printf("To 2\n");
-        psp1 = psp_get();
-        psp_set(psp2);
-        curr_thread = 2;
-    }
-    else if (curr_thread == 2)
-    {
-        printf("To 3\n");
-        psp2 = psp_get();
-        psp_set(psp3);
-        curr_thread = 3;
-    }
-    else if (curr_thread == 3)
-    {
-        printf("To 1\n");
-        psp3 = psp_get();
-        psp_set(psp1);
-        curr_thread = 1;
-    }
+
+    currt = sched_get_currt();
+    currt->psp = psp_get();
+    schedule(currt);
+    currt = sched_get_currt();
+    psp_set(currt->psp);
 }

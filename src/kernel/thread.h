@@ -1,17 +1,28 @@
 
-#ifndef _THREAD_H_INCLUDED
-#define _THREAD_H_INCLUDED
+#ifndef THREAD_H_INCLUDED
+#define THREAD_H_INCLUDED
 
 #include "arm.h"
+#include "dlist.h"
+
+#include <stddef.h>
+
+enum
+{
+    THR_ST_RUNNING,
+};
 
 struct thread_obj
 {
+    dlist_chain_t chain;
     int id;
-    //struct regpack *reg;
-    unsigned long *stk;
+    int state;
+    struct regpack *reg;
+    char *stk;
     unsigned long psp;
+    size_t stk_sz;
 };
 
 void thread_init();
 
-#endif /* _THREAD_H_INCLUDED */
+#endif /* THREAD_H_INCLUDED */

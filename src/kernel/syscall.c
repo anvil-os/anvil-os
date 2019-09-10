@@ -1,9 +1,10 @@
 
+#include "syscall.h"
+#include "sched.h"
+
 #include <errno.h>
 #include <sys/syscalls.h>
 #include <stdio.h>
-
-#include "syscall.h"
 
 /*
  * This creates an array of function pointers to the syscall handlers
@@ -28,8 +29,6 @@ int kcall_nop(struct thread_obj *t)
     return 0;
 }
 
-extern struct thread_obj *pcurrt;
-
 void syscall()
 {
     /*
@@ -43,13 +42,14 @@ void syscall()
      * Additionally r0 holds the return value.
      */
 
-    pcurrt->psp = psp_get();
+    struct thread_obj *currt = sched_get_currt();
 
-    struct regpack *reg = (struct regpack *)(pcurrt->psp);
+    currt->psp = psp_get();
+    currt->reg = (struct regpack *)(currt->psp);
 
-    int syscall = reg->r0;
+    int syscall = PARM1;
 
-    printf("r0=%lx r1=%lx r2=%lx\n", reg->r0, reg->r1, reg->r2);
+    printf("r0=%lx r1=%lx r2=%lx\n", PARM1, PARM2, PARM3);
 
     /* Check that the syscall number is valid */
     if (syscall > __enum_kcall_nop)
@@ -58,7 +58,7 @@ void syscall()
         return;
     }
 
-    RETVAL = SysCall[syscall](pcurrt);
+    RETVAL = SysCall[syscall](currt);
 
-    psp_set(pcurrt->psp);
+    //psp_set(pcurrt->psp);
 }

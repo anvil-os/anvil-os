@@ -1,18 +1,22 @@
 
 #include "thread.h"
+#include "syscall.h"
+#include "sched.h"
+
 #include <stdio.h>
+#include <stdlib.h>
+#include <stdlib.h>
 
 struct thread_obj thread_1;
 
-struct thread_obj *pcurrt;
-
-unsigned long stk1[256];
+char stk1[256];
 
 void thread_init()
 {
     thread_1.id = 1;
+    thread_1.stk_sz = 256;
     thread_1.stk = stk1;
-    thread_1.psp = (long)(stk1 + 256);
+    thread_1.psp = (unsigned long)(stk1 + 256);
 
     /* Point the psp at the thread 1 stack */
     psp_set(thread_1.psp);
@@ -22,12 +26,24 @@ void thread_init()
 
     /* Set the thread mode stack to be the PSP */
     control_set(0x00000002);
-
-    pcurrt = &thread_1;
 }
 
-int kcall_threadcreate(struct thread_obj *t)
+int kcall_threadcreate(struct thread_obj *currt)
 {
     printf("kcall_threadcreate\n");
-    return t->id;
+
+    struct thread_obj *p_thr;
+    p_thr = (struct thread_obj *)malloc(sizeof (struct thread_obj));
+    p_thr->stk_sz = 256;
+    p_thr->stk = (char *)malloc(p_thr->stk_sz);
+    p_thr->id = 2;
+    p_thr->psp = (unsigned long)(p_thr->stk + p_thr->stk_sz - sizeof(struct regpack));
+
+    struct regpack *preg = (struct regpack *)(p_thr->stk + p_thr->stk_sz - sizeof(struct regpack));
+    preg->psr = 0x01000000;
+    preg->pc = (unsigned long)PARM2;
+
+    sched_add(p_thr, 0);
+
+    return 0;
 }
