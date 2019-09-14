@@ -9,7 +9,7 @@
 
 struct thread_obj thread_1;
 
-char stk1[256];
+unsigned long long stk1[32];
 
 void thread_init()
 {
