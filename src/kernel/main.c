@@ -30,13 +30,14 @@ int main()
 {
     thrd_t thr;
 
-    //libc_test();
-
     debug_init();
+
+    libc_test();
 
     sys_tick_init();
 
     thrd_create(&thr, thread2, (void *)0x12345678);
+    thrd_create(&thr, thread3, (void *)0x12345678);
 
     while (1)
     {
