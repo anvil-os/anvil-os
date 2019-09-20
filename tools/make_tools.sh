@@ -110,7 +110,7 @@ export GCC_VER=9.1.0
 export GMP_VER=6.1.1
 export MPC_VER=1.0.3
 export MPFR_VER=3.1.4
-export GDB_VER=7.11
+export GDB_VER=8.3
 
 # ======== CLEAN ====================
 
@@ -210,7 +210,7 @@ function build_gdb {
     patch -p 1 < ../gdb.patch
     cd ..
 
-    cp -R gdb.files/* gdb-$GDB_VER
+#    cp -R gdb.files/* gdb-$GDB_VER
 
     mkdir gdb-build-$TARGET
     cd gdb-build-$TARGET
@@ -238,12 +238,12 @@ fi
 
 if [[ $BUILDTYPE = "BUILD_GCC" || $BUILDTYPE = "BUILD_ALL" ]] ; then
     echo 'Building gcc...'
-    build_gcc
+#    build_gcc
 fi
 
 if [[ $BUILDTYPE = "BUILD_GDB" || $BUILDTYPE = "BUILD_ALL" ]] ; then
     echo 'Building gdb...'
-#    build_gdb
+    build_gdb
 fi
 
 echo 'Done.'
