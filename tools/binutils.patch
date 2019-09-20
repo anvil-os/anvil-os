@@ -1,0 +1,130 @@
+diff --git a/bfd/config.bfd b/bfd/config.bfd
+index 0e1ddb65..ec087cec 100644
+--- a/bfd/config.bfd
++++ b/bfd/config.bfd
+@@ -330,6 +330,10 @@ case "${targ}" in
+     targ_selvecs=arc_elf32_be_vec
+     ;;
+ 
++  arm-*-anvil*)
++    targ_defvec=arm_elf32_le_vec
++    targ_selvecs="arm_elf32_be_vec"
++    ;;
+   arm-*-darwin*)
+     targ_defvec=arm_mach_o_vec
+     targ_selvecs="mach_o_le_vec mach_o_be_vec mach_o_fat_vec"
+@@ -604,6 +608,10 @@ case "${targ}" in
+     targ64_selvecs=x86_64_mach_o_vec
+     targ_archs="$targ_archs bfd_powerpc_arch bfd_rs6000_arch"
+     ;;
++  i[3-7]86-*-anvil*)
++    targ_defvec=i386_elf32_vec
++    targ_selvecs=i386_coff_vec
++    ;;
+   i[3-7]86-*-bsd*)
+     targ_defvec=i386_aout_bsd_vec
+     targ_underscore=yes
+@@ -668,7 +676,7 @@ case "${targ}" in
+     targ_selvecs="i386_elf32_vec iamcu_elf32_vec l1om_elf64_vec k1om_elf64_vec"
+     want64=true
+     ;;
+-  x86_64-*-elf* | x86_64-*-rtems* | x86_64-*-fuchsia)
++  x86_64-*-elf* | x86_64-*-rtems* | x86_64-*-fuchsia | x86_64-*-anvil*)
+     targ_defvec=x86_64_elf64_vec
+     targ_selvecs="i386_elf32_vec iamcu_elf32_vec x86_64_elf32_vec l1om_elf64_vec k1om_elf64_vec"
+     case "${targ}" in
+diff --git a/config.sub b/config.sub
+index 75bb6a31..e9678e21 100755
+--- a/config.sub
++++ b/config.sub
+@@ -1341,7 +1341,7 @@ case $os in
+ 	     | hpux* | unos* | osf* | luna* | dgux* | auroraux* | solaris* \
+ 	     | sym* | kopensolaris* | plan9* \
+ 	     | amigaos* | amigados* | msdos* | newsos* | unicos* | aof* \
+-	     | aos* | aros* | cloudabi* | sortix* \
++	     | aos* | aros* | cloudabi* | sortix* | anvil* \
+ 	     | nindy* | vxsim* | vxworks* | ebmon* | hms* | mvs* \
+ 	     | clix* | riscos* | uniplus* | iris* | isc* | rtu* | xenix* \
+ 	     | knetbsd* | mirbsd* | netbsd* \
+diff --git a/gas/configure.tgt b/gas/configure.tgt
+index 616d2113..7d396ba6 100644
+--- a/gas/configure.tgt
++++ b/gas/configure.tgt
+@@ -138,6 +138,7 @@ case ${generic_target} in
+   arc*-*-linux*)			fmt=elf bfd_gas=yes ;;
+ 
+   arm-*-phoenix*)			fmt=elf ;;
++  arm-*-anvil*)             fmt=elf ;;
+   arm-*-elf)				fmt=elf ;;
+   arm-*-eabi* | arm-*-rtems*)		fmt=elf em=armeabi ;;
+   arm-*-symbianelf*)			fmt=elf em=symbian ;;
+@@ -213,6 +214,7 @@ case ${generic_target} in
+   h8300-*-elf)				fmt=elf ;;
+   h8300-*-linux*)			fmt=elf em=linux ;;
+ 
++  i386-*-anvil*)            fmt=elf ;;
+   i386-*-beospe*)			fmt=coff em=pe ;;
+   i386-*-beos*)				fmt=elf ;;
+   i386-*-elfiamcu)			fmt=elf arch=iamcu ;;
+diff --git a/ld/Makefile.am b/ld/Makefile.am
+index c2c798b4..40ec6afb 100644
+--- a/ld/Makefile.am
++++ b/ld/Makefile.am
+@@ -168,6 +168,7 @@ ALL_EMULATION_SOURCES = \
+ 	earclinux_prof.c \
+ 	earm_wince_pe.c \
+ 	earmelf.c \
++    earmelf_anvil.c \
+ 	earmelf_fbsd.c \
+ 	earmelf_fuchsia.c \
+ 	earmelf_linux.c \
+@@ -694,6 +695,10 @@ earmelf.c: $(srcdir)/emulparams/armelf.sh \
+   $(ELF_DEPS) $(srcdir)/emultempl/armelf.em \
+   $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
+ 
++earmelf_anvil.c: $(srcdir)/emulparams/armelf_anvil.sh \
++  $(ELF_DEPS) $(srcdir)/emultempl/armelf.em \
++  $(srcdir)/scripttempl/elf.sc ${GEN_DEPENDS}
++
+ earmelf_fbsd.c: $(srcdir)/emulparams/armelf_fbsd.sh \
+   $(srcdir)/emulparams/armelf.sh $(srcdir)/emulparams/elf_fbsd.sh \
+   $(ELF_DEPS) $(srcdir)/emultempl/armelf.em \
+diff --git a/ld/configure.tgt b/ld/configure.tgt
+index beba17ef..7a0cdf45 100644
+--- a/ld/configure.tgt
++++ b/ld/configure.tgt
+@@ -161,6 +161,7 @@ arm*-*-uclinux*)	targ_emul=armelf_linux
+ 			targ_extra_emuls="armelf armelfb armelfb_linux"
+ 			targ_extra_libpath="armelfb_linux"
+ 			;;
++arm-*-anvil*)       targ_emul=armanvil ;;
+ arm-*-vxworks)		targ_emul=armelf_vxworks ;;
+ arm*-*-conix*)		targ_emul=armelf ;;
+ arm*-*-fuchsia*)	targ_emul=armelf_fuchsia
+@@ -309,6 +310,10 @@ i[3-7]86-*-elfiamcu)	targ_emul=elf_iamcu
+ i[3-7]86-*-elf* | i[3-7]86-*-rtems*)
+ 			targ_emul=elf_i386
+ 			targ_extra_emuls=elf_iamcu ;;
++i[3-7]86-*-anvil*) targ_emul=elf_i386 ;;
++x86_64-*-anvil*)   targ_emul=elf_x86_64
++           targ_extra_emuls="elf_i386 elf_l1om elf_k1om"
++           ;;
+ x86_64-*-elf* | x86_64-*-rtems* | x86_64-*-fuchsia*)
+ 			targ_emul=elf_x86_64
+ 			targ_extra_emuls="elf_i386 elf_iamcu elf32_x86_64 elf_l1om elf_k1om"
+diff --git a/ld/emulparams/elf_x86_64.sh b/ld/emulparams/elf_x86_64.sh
+index d8c6e548..de42a29e 100644
+--- a/ld/emulparams/elf_x86_64.sh
++++ b/ld/emulparams/elf_x86_64.sh
+@@ -54,6 +54,11 @@ case "$target" in
+ 	;;
+     esac
+     ;;
++  x86_64*-anvil*|i[3-7]86-*-anvil-*)
++    case "$EMULATION_NAME" in
++      *64*) LIBPATH_SUFFIX=64 ;;
++    esac
++    ;;
+   *-*-solaris2*)
+     LIBPATH_SUFFIX=/amd64
+     ELF_INTERPRETER_NAME=\"/lib/amd64/ld.so.1\"

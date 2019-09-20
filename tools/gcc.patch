@@ -1,0 +1,46 @@
+diff --git a/config.sub b/config.sub
+index 75bb6a313..e9678e21d 100755
+--- a/config.sub
++++ b/config.sub
+@@ -1341,7 +1341,7 @@ case $os in
+ 	     | hpux* | unos* | osf* | luna* | dgux* | auroraux* | solaris* \
+ 	     | sym* | kopensolaris* | plan9* \
+ 	     | amigaos* | amigados* | msdos* | newsos* | unicos* | aof* \
+-	     | aos* | aros* | cloudabi* | sortix* \
++	     | aos* | aros* | cloudabi* | sortix* | anvil* \
+ 	     | nindy* | vxsim* | vxworks* | ebmon* | hms* | mvs* \
+ 	     | clix* | riscos* | uniplus* | iris* | isc* | rtu* | xenix* \
+ 	     | knetbsd* | mirbsd* | netbsd* \
+diff --git a/fixincludes/mkfixinc.sh b/fixincludes/mkfixinc.sh
+index 0f9648608..2e6b02bd0 100755
+--- a/fixincludes/mkfixinc.sh
++++ b/fixincludes/mkfixinc.sh
+@@ -11,6 +11,7 @@ target=fixinc.sh
+ 
+ # Check for special fix rules for particular targets
+ case $machine in
++    *-anvil* | \
+     i?86-*-cygwin* | \
+     i?86-*-mingw32* | \
+     x86_64-*-mingw32* | \
+diff --git a/gcc/config.gcc b/gcc/config.gcc
+index 09fb9ecd2..f4a32d5d5 100644
+--- a/gcc/config.gcc
++++ b/gcc/config.gcc
+@@ -1208,6 +1208,16 @@ arm*-*-phoenix*)
+ 	tmake_file="${tmake_file} arm/t-arm arm/t-bpabi arm/t-phoenix"
+ 	target_cpu_cname="arm7tdmi"
+ 	;;
++arm*-anvil-eabi*)
++    default_use_cxa_atexit=yes
++    tm_file="dbxelf.h elfos.h arm/unknown-elf.h arm/elf.h arm/bpabi.h"
++    tmake_file="${tmake_file} arm/t-arm arm/t-arm-elf"
++    target_cpu_cname="arm7tdmi"
++    tm_file="$tm_file newlib-stdint.h arm/anvil-eabi.h"
++    tmake_file="${tmake_file} arm/t-bpabi arm/t-anvil"
++    use_gcc_stdint=wrap
++    tm_file="${tm_file} arm/aout.h arm/arm.h"
++    ;;
+ arm*-*-eabi* | arm*-*-symbianelf* | arm*-*-rtems* | arm*-*-fuchsia*)
+ 	case ${target} in
+ 	arm*eb-*-eabi*)

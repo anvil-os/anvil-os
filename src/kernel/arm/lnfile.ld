@@ -18,9 +18,9 @@ SECTIONS
 
     .ARM.exidx :
     {
-        __sexidx__ = .;
+        __exidx_start = .;
         *(.ARM.exidx* .gnu.linkonce.armexidx.*)
-        __eexidx__ = .;
+        __exidx_end = .;
     } > INTERNAL_ROM
 
     . = ALIGN(4);
