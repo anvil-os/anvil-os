@@ -228,17 +228,17 @@ function build_gdb {
 
 if [[ $BUILDTYPE = "BUILD_CLEAN" || $BUILDTYPE = "BUILD_ALL" ]] ; then
     echo 'Cleaning all cross tools'
-#    clean_all
+    clean_all
 fi
 
 if [[ $BUILDTYPE = "BUILD_BINUTILS" || $BUILDTYPE = "BUILD_ALL" ]] ; then
     echo 'Building binutils...'
-#    build_binutils
+    build_binutils
 fi
 
 if [[ $BUILDTYPE = "BUILD_GCC" || $BUILDTYPE = "BUILD_ALL" ]] ; then
     echo 'Building gcc...'
-#    build_gcc
+    build_gcc
 fi
 
 if [[ $BUILDTYPE = "BUILD_GDB" || $BUILDTYPE = "BUILD_ALL" ]] ; then
