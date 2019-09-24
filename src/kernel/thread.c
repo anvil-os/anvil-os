@@ -9,14 +9,14 @@
 
 struct thread_obj thread_1;
 
-unsigned long long stk1[32];
+unsigned long long stk1[64];
 
 void thread_init()
 {
     thread_1.id = 1;
-    thread_1.stk_sz = 256;
+    thread_1.stk_sz = 512;
     thread_1.stk = stk1;
-    thread_1.psp = (unsigned long)(stk1 + 256);
+    thread_1.psp = (unsigned long)(stk1 + 512);
 
     /* Point the psp at the thread 1 stack */
     psp_set(thread_1.psp);

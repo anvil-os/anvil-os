@@ -67,6 +67,9 @@ all: $(LIBRARY)
 $(LIBRARY): $(OBJECTS) 
 	@echo "          AR $(NICE_DIR_NAME)/$(LIBRARY)"
 	$(AR) -rc $@ $(OBJECTS)
+	mkdir -p /Users/gerryg/anvil-os/sysroot-arm/usr/lib
+	cp $@ /Users/gerryg/anvil-os/sysroot-arm/usr/lib
+	cp $@ /Users/gerryg/anvil-os/sysroot-arm/usr/lib/libg.a
 endif
 
 # As per http://make.mad-scientist.net/papers/advanced-auto-dependency-generation/

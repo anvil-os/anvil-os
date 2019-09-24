@@ -79,8 +79,11 @@ void PendSV_Handler()
     while (1);
 }
 
+int systick_cnt = 0;
+
 void SysTick_Handler1()
 {
+    ++systick_cnt;
     struct thread_obj *currt;
 
     if (++counter > 1000)
