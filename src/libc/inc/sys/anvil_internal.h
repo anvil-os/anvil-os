@@ -2,6 +2,60 @@
 #ifndef _SYS_ANVIL_INTERNAL_H_INCLUDED
 #define _SYS_ANVIL_INTERNAL_H_INCLUDED
 
+/*
+ * These are here to help Eclipse. Because __ANVIL__ is always defined these
+ * will never be seen by the compiler
+ */
+#if ! defined(__ANVIL__)
+#define __GNUC__            4
+#define GCC_TM_PREDS_H
+
+#define __INTPTR_TYPE__         int
+#define __UINTPTR_TYPE__        unsigned int
+
+#define __INTMAX_TYPE__         long long int
+#define __UINTMAX_TYPE__        long long unsigned int
+
+#define __SIZE_TYPE__           unsigned int
+
+#define __INT_MAX__             2147483647
+#define __WCHAR_MAX__           2147483647
+#define __SHRT_MAX__            32767
+#define __SCHAR_MAX__           127
+#define __INT_MAX__             2147483647
+#define __INTMAX_MAX__          9223372036854775807L
+#define __SIZE_MAX__            18446744073709551615UL
+#define __SIZEOF_SIZE_T__       8
+
+#define __INT8_TYPE__           signed char
+#define __INT16_TYPE__          short int
+#define __INT32_TYPE__          long int
+#define __INT64_TYPE__          long long int
+#define __UINT8_TYPE__          unsigned char
+#define __UINT16_TYPE__         short unsigned int
+#define __UINT32_TYPE__         long unsigned int
+#define __UINT64_TYPE__         long long unsigned int
+
+#define __INT_LEAST8_TYPE__     signed char
+#define __INT_LEAST16_TYPE__    short int
+#define __INT_LEAST32_TYPE__    long int
+#define __INT_LEAST64_TYPE__    long long int
+#define __UINT_LEAST8_TYPE__    unsigned char
+#define __UINT_LEAST16_TYPE__   short unsigned int
+#define __UINT_LEAST32_TYPE__   long unsigned int
+#define __UINT_LEAST64_TYPE__   long long unsigned int
+
+#define __INT_FAST8_TYPE__      int
+#define __INT_FAST16_TYPE__     int
+#define __INT_FAST32_TYPE__     int
+#define __INT_FAST64_TYPE__     long long int
+#define __UINT_FAST8_TYPE__     unsigned int
+#define __UINT_FAST16_TYPE__    unsigned int
+#define __UINT_FAST32_TYPE__    unsigned int
+#define __UINT_FAST64_TYPE__    long long unsigned int
+
+#endif
+
 #define _Anvil_CtCtl (0x01)
 #define _Anvil_CtSpc (0x02)
 #define _Anvil_CtPnc (0x04)

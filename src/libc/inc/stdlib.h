@@ -20,4 +20,8 @@ void free(void *__ptr);
 void *malloc(size_t __size);
 void *realloc(void *__ptr, size_t __size);
 
+void abort(void);
+int atexit(void (*func)(void));
+char *getenv(const char *name);
+
 #endif /* _STDLIB_H_INCLUDED */

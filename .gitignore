@@ -1,4 +1,10 @@
-build
+build*
+cross-tools*
 .project
 .cproject
 .settings/*
+sysroot-*
+*-build-*
+binutils-*
+gcc-*
+gdb-*

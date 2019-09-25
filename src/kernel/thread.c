@@ -15,17 +15,11 @@ void thread_init()
 {
     thread_1.id = 1;
     thread_1.stk_sz = 512;
-    thread_1.stk = stk1;
-    thread_1.psp = (unsigned long)(stk1 + 512);
+    thread_1.stk = &stk1[0];
+    thread_1.psp = (unsigned long long)(thread_1.stk + 512);
 
     /* Point the psp at the thread 1 stack */
     psp_set(thread_1.psp);
-
-    /* Point the msp at the kernel stack */
-    msp_set(0x20002000);
-
-    /* Set the thread mode stack to be the PSP */
-    control_set(0x00000002);
 }
 
 int kcall_threadcreate(struct thread_obj *currt)
