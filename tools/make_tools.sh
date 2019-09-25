@@ -59,6 +59,7 @@ if [[ $ARCH = "arm" ]] ; then
 echo 'for ARM'
 export TARGET=arm-anvil-eabi
 export GCC_ARCH_ARGS="\
+ --enable-languages=c,c++ \
  --enable-plugins \
  --disable-decimal-float \
  --disable-libffi \
@@ -66,16 +67,18 @@ export GCC_ARCH_ARGS="\
  --disable-libmudflap \
  --disable-libquadmath \
  --disable-libssp \
- --enable-tls \
+ --disable-tls \
  --disable-nls \
  --disable-shared \
- --enable-threads=posix \
+ --disable-threads \
  --disable-wchar_t \
  --with-fpu=vfp \
  --disable-clocale \
+ --disable-libstdcxx-pch \
  --disable-libstdcxx-verbose \
  --enable-cxx-flags=-fno-exceptions \
- --disable-tls \
+ --with-newlib \
+ --enable-multilib \
  "
 fi
 
@@ -183,7 +186,7 @@ function build_gcc {
     
     mkdir gcc-build-$TARGET
     cd gcc-build-$TARGET
-    CXXFLAGS="-O2 -fbracket-depth=1024" ../gcc-$GCC_VER/configure $COMMON_ARGS --target=$TARGET --prefix=$PREFIX --with-sysroot=$SYSROOT --disable-libstdcxx-pch --disable-werror --enable-languages=c,c++ --with-newlib --disable-libstdcxx-verbose $GCC_ARCH_ARGS $CONFIG_STRING --enable-multilib --disable-nls --disable-libssp --enable-languages=c,c++ --with-newlib --with-system-zlib
+    CXXFLAGS="-O2 -fbracket-depth=1024" ../gcc-$GCC_VER/configure $COMMON_ARGS --target=$TARGET --prefix=$PREFIX --with-sysroot=$SYSROOT --disable-werror $GCC_ARCH_ARGS $CONFIG_STRING --with-system-zlib
     
     make -j 4 all-gcc
     make install-gcc $DESTDIR_STRING
