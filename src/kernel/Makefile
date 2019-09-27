@@ -3,6 +3,8 @@ BINARY := anvil
 
 LIBS := ../bsp/libbsp.a
 
+EXTRA_DEPS := ../libc/libc.a
+
 MODULE_LDFLAGS := \
     -L../bsp/ \
     -lbsp \
