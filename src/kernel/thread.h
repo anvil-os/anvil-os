@@ -6,6 +6,7 @@
 #include "dlist.h"
 
 #include <stddef.h>
+#include <stdint.h>
 
 enum
 {
@@ -18,8 +19,8 @@ struct thread_obj
     int id;
     int state;
     struct regpack *reg;
-    char *stk;
-    unsigned long psp;
+    uint64_t *stk;
+    uint32_t psp;
     size_t stk_sz;
 };
 

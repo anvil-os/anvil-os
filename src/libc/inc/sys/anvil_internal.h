@@ -54,6 +54,10 @@
 #define __UINT_FAST32_TYPE__    unsigned int
 #define __UINT_FAST64_TYPE__    long long unsigned int
 
+#define restrict
+
+#define __gnuc_va_list unsigned char *
+
 #endif
 
 #define _Anvil_CtCtl (0x01)
@@ -82,9 +86,12 @@ long long _Anvil_strtoll(const char *restrict __str,
                     int __base, long long __min,
                     unsigned long long __max);
 
-#include <stdarg.h>
+#define _Anvil_va_list  __builtin_va_list
+#define _Anvil_int64_t  __INT64_TYPE__
 
-int _Anvil_printf(const char *__fmt, va_list __ap, int (*__nputs)(void *, const char *, int), void *__arg);
+#define _Anvil_off_t    __INT64_TYPE__
+
+int _Anvil_printf(const char *__fmt, _Anvil_va_list __ap, int (*__nputs)(void *, const char *, int), void *__arg);
 
 extern int _Errno;
 
