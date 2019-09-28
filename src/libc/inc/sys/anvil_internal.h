@@ -86,6 +86,8 @@ long long _Anvil_strtoll(const char *restrict __str,
                     int __base, long long __min,
                     unsigned long long __max);
 
+void *_Anvil_realloc(void *__ptr, __SIZE_TYPE__ __size);
+
 #define _Anvil_va_list  __builtin_va_list
 #define _Anvil_int64_t  __INT64_TYPE__
 
