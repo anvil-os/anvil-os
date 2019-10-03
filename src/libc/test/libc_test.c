@@ -9,6 +9,7 @@ int libc_test()
     ctype_test();
     stdlib_test();
     stdio_printf_test();
+    stdlib_malloc_test();
     time_test();
 
     return 0;

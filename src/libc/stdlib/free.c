@@ -3,5 +3,5 @@
 
 void free(void *ptr)
 {
-    _Anvil_realloc(ptr, 0);
+    _Anvil_free(ptr);
 }

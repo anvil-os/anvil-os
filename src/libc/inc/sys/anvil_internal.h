@@ -26,6 +26,8 @@
 #define __INTMAX_MAX__          9223372036854775807L
 #define __SIZE_MAX__            18446744073709551615UL
 #define __SIZEOF_SIZE_T__       8
+#define __LONG_MAX__            0x7fffffffL
+#define __LONG_LONG_MAX__       0x7fffffffffffffffLL
 
 #define __INT8_TYPE__           signed char
 #define __INT16_TYPE__          short int
@@ -86,6 +88,8 @@ long long _Anvil_strtoll(const char *restrict __str,
                     int __base, long long __min,
                     unsigned long long __max);
 
+void *_Anvil_malloc(__SIZE_TYPE__ __size);
+void _Anvil_free(void *__ptr);
 void *_Anvil_realloc(void *__ptr, __SIZE_TYPE__ __size);
 
 #define _Anvil_va_list  __builtin_va_list
