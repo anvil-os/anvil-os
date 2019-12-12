@@ -1,6 +1,7 @@
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define DEBUG
 #if !defined (DEBUG)
@@ -20,13 +21,12 @@
 #define MALLOC_ALIGN        (1 << MALLOC_ALIGN_LOG)
 #define MALLOC_ALIGN_MASK   ((1 << MALLOC_ALIGN_LOG) - 1)
 
-/* These are the bits in size_this - there are 3 (or 4) spare */
-#define BLK_USED            (1<<0)
-#define BLK_END             (1<<1)
-#define BLK_BITMASK         (BLK_USED|BLK_END)
+/* These are stored in the low bits of size_this - room for (or 4) */
+#define BLK_PREV_USED       (1<<0)
+#define BLK_BITMASK         (BLK_PREV_USED)
 
-#define MALBLK_TO_PTR(__p) ((char *)__p + sizeof(size_t))
-#define PTR_TO_MALLOC_BLOCK(__p) ((malblk_t *)((char *)__p - sizeof(size_t)))
+#define MALBLK_TO_PTR(__p) ((char *)__p + 2 * sizeof(size_t))
+#define PTR_TO_MALLOC_BLOCK(__p) ((malblk_t *)((char *)__p - 2 * sizeof(size_t)))
 
 struct malblk
 {
@@ -34,16 +34,11 @@ struct malblk
      * size_this is the entire size of the malloc block. This includes the
      * user data and the 2 size_this-es
      */
+    size_t size_prev;
     size_t size_this;
-
-    /* Malloc blocks are variable size. We represent it with a single byte */
-    char data[1];
-
-    /*
-     * There's another size_this at the end but we don't know exactly where
-     * it is. It can be accessed using the macro below
-     */
-    //size_t size_this2;
+    /* The user area starts here */
+    struct malblk *prev;
+    struct malblk *next;
 };
 typedef struct malblk malblk_t;
 
@@ -59,10 +54,11 @@ static int _SysmemCheck(void);
 static malblk_t *malblk_split(malblk_t *blk, size_t size);
 static size_t malblk_round_up(size_t val);
 static malblk_t *malblk_try_join_prev(malblk_t *blk);
-static malblk_t *malblk_try_join_next(malblk_t *blk);
+static malblk_t *malblk_try_join_next(malblk_t *blk, size_t extra_req);
 
 
 static void blk_size_and_flags_set(malblk_t *pblk, size_t size_and_flags);
+void blk_size_set(malblk_t *pblk, size_t size);
 static size_t blk_size_get(malblk_t *pblk);
 static void blk_used_set(malblk_t *pblk);
 static void blk_used_clr(malblk_t *pblk);
@@ -70,40 +66,32 @@ static void blk_used_clr(malblk_t *pblk);
 static malblk_t *blk_prev(malblk_t *pblk);
 static malblk_t *blk_next(malblk_t *pblk);
 static int blk_used_get(malblk_t *pblk);
-static int blk_end_get(malblk_t *pblk);
+//static int blk_end_get(malblk_t *pblk);
 
 static malblk_t *_Core;
 
 extern char __ebss__;
 extern char __eram__;
 
-malblk_t *malblk_split(malblk_t *blk, size_t size)
+static const size_t s_min_blk_size = 2 * sizeof(size_t) + 2 * sizeof(void *);
+
+malblk_t *malblk_split(malblk_t *blk, size_t new_size)
 {
-    /*
-     * Split a block into 2.
-     *
-     * Blocks that are being split will generally be not in use and therefore
-     * their flag bits are assumed to be clear.
-     *
-     * In fact we will assert that they are clear
-     */
+    /* Split a block into 2 */
 
     malblk_t *rem_blk;
     size_t rem_size;
     size_t curr_size;
-    size_t requ_size;
 
-    /* Size of the requested split block */
-    requ_size = size + 2 * sizeof(size_t);
     /* Size of the block we are splitting */
     curr_size = blk_size_get(blk);
 
-    malloc_debug("splitting %d bytes, size=%d, split_size=%d\n", curr_size, size, requ_size);
+    malloc_debug("splitting %d bytes, split_size=%d\n", curr_size, new_size);
 
-    /* Check that the split is worth doing */
-    if ((requ_size + 2 * sizeof(void *)) >= curr_size)
+    /* Check that the split is possible. Both parts must end up > (2 size_t + 2 void *) */
+    if (new_size < s_min_blk_size || new_size + s_min_blk_size > curr_size)
     {
-        malloc_debug("no split needed\n");
+        malloc_debug("Split not possible %u %u %u\n", curr_size, s_min_blk_size, new_size);
         /* It's only just big enough so return NULL to indicate no split */
         return NULL;
     }
@@ -111,11 +99,11 @@ malblk_t *malblk_split(malblk_t *blk, size_t size)
     /* We'll split off from the front of the blk. Firstly we figure out where
      * the remaining block will start
      */
-    rem_blk = (malblk_t *)((char *)blk + requ_size);
-    rem_size = blk_size_get(blk) - requ_size;
+    rem_blk = (malblk_t *)((char *)blk + new_size);
+    rem_size = curr_size - new_size;
     malloc_debug("rem_size=%d\n", rem_size);
-    blk_size_and_flags_set(rem_blk, rem_size);
-    blk_size_and_flags_set(blk, requ_size);
+    blk_size_set(rem_blk, rem_size);
+    blk_size_set(blk, new_size);
 
     return rem_blk;
 }
@@ -129,24 +117,25 @@ size_t malblk_round_up(size_t val)
      * Each block must also contain 2 size_t fields. Therefore roundup as
      * follows.
      *
-     *  0 -  8 bytes >> 4 ptrs >> 16 bytes
-     *  9 - 16 bytes >> 6 ptrs >> 24 bytes
-     * 17 - 24 bytes >> 8 ptrs >> 32 bytes
+     *  0 - 12 bytes >> 4 ptrs >> 16 bytes
+     * 13 - 20 bytes >> 6 ptrs >> 24 bytes
+     * 21 - 28 bytes >> 8 ptrs >> 32 bytes
      * etc.
      *
      * For 64 bit libs the values double.
      *
-     *  0 - 16 bytes >> 4 ptrs >> 32 bytes
-     * 17 - 32 bytes >> 6 ptrs >> 48 bytes
-     * 33 - 48 bytes >> 8 ptrs >> 64 bytes
+     *  0 - 24 bytes >> 4 ptrs >> 32 bytes
+     * 25 - 40 bytes >> 6 ptrs >> 48 bytes
+     * 41 - 56 bytes >> 8 ptrs >> 64 bytes
      * etc.
      */
 
-    if (val == 0)
+    if (val < 5)
     {
-        val = 1;
+        val = 5;
     }
 
+    val -= sizeof(size_t);
     val += MALLOC_ALIGN_MASK;
     val &= ~MALLOC_ALIGN_MASK;
     val += 2 * sizeof(void *);
@@ -161,29 +150,18 @@ size_t malblk_round_up(size_t val)
     return val;
 }
 
-
 malblk_t *malblk_try_join_prev(malblk_t *blk)
 {
-    /*
-     * Join blk with the prev block but only if the prev block is not
-     * the end and not busy
-     */
+    /* Join blk with the prev block but only if the prev block is not busy */
     malblk_t *prev;
     size_t total;
 
-    malloc_debug("malblk_try_join_prev - ");
+    malloc_debug("%08x malblk_try_join_prev - ", blk);
 
     prev = blk_prev(blk);
-
-    if (!prev || blk_used_get(prev) || blk_end_get(prev))
+    if (prev == NULL)
     {
-        malloc_debug("fail\n");
-        malloc_debug("prev=%08lx\n", prev);
-        if (prev)
-        {
-            malloc_debug("used=%d\n", blk_used_get(prev));
-            malloc_debug("end=%d\n", blk_end_get(prev));
-        }
+        malloc_debug("prev in use\n");
         return blk;
     }
 
@@ -193,17 +171,15 @@ malblk_t *malblk_try_join_prev(malblk_t *blk)
     /* Now join them */
     total = blk_size_get(prev) + blk_size_get(blk);
     malloc_debug("done, join %d %d ", blk_size_get(prev), blk_size_get(blk));
-    blk_size_and_flags_set(prev, total);
+    blk_size_set(prev, total);
     malloc_debug("got %d\n", total);
 
     return prev;
 }
 
-malblk_t *malblk_try_join_next(malblk_t *blk)
+malblk_t *malblk_try_join_next(malblk_t *blk, size_t extra_req)
 {
-    /* Join blk with the next block but only if the next block is not
-     * the end and not busy
-     */
+    /* Join blk with the next block but only if the next block is not busy */
     malblk_t *next;
     size_t total;
 
@@ -211,14 +187,13 @@ malblk_t *malblk_try_join_next(malblk_t *blk)
 
     next = blk_next(blk);
 
-    if (!next || blk_used_get(next) || blk_end_get(next))
+    if (!next || (blk_size_get(next) < extra_req) || blk_used_get(next))
     {
         malloc_debug("fail\n");
         return blk;
     }
 
     malloc_debug("used=%d\n", blk_used_get(next));
-    malloc_debug("end=%d\n", blk_end_get(next));
 
     /* Take the next from the free list */
     freelist_remove(next);
@@ -226,7 +201,7 @@ malblk_t *malblk_try_join_next(malblk_t *blk)
     /* Now join them */
     total = blk_size_get(blk) + blk_size_get(next);
     malloc_debug("done, join %d %d ", blk_size_get(blk), blk_size_get(next));
-    blk_size_and_flags_set(blk, total);
+    blk_size_set(blk, total);
     malloc_debug("got %d\n", total);
 
     return blk;
@@ -241,33 +216,24 @@ malblk_t *malblk_try_join_next(malblk_t *blk)
 
 static malblk_t *blk_prev(malblk_t *pblk)
 {
-    /* We just need to look at the size_t sized word right before the start
-     * of the current block. As long as it's not an 'end' we can just subtract
-     */
-    size_t prev_size;
-
-    prev_size = *((size_t *)pblk - 1);
-
-    if ((prev_size & BLK_END) == BLK_END)
+    /* This function returns the previous block BUT ONLY IF THE BLOCK IS FREE */
+    if (pblk->size_this & BLK_PREV_USED)
     {
-        /* It's an end so ... */
         return NULL;
     }
-    prev_size &= ~BLK_BITMASK;
-
-    return  (malblk_t *)((char *)pblk - prev_size);
+    return (malblk_t *)((char *)pblk - pblk->size_prev);
 }
 
 static malblk_t *blk_next(malblk_t *pblk)
 {
-    /* We just need to look at the size_t sized word right after the end
-     * of the current block. As long as it's not an 'end' we can just add
+    /* We just need to look at the size_this of the next block. If it is
+     * zero we are at the end
      */
     malblk_t *pnext;
 
     pnext = (malblk_t *)((char *)pblk + blk_size_get(pblk));
 
-    if ((pnext->size_this & BLK_END) == BLK_END)
+    if (blk_size_get(pnext) == 0)
     {
         /* It's an end so ... */
         return NULL;
@@ -283,13 +249,9 @@ static malblk_t *blk_next(malblk_t *pblk)
  *
  */
 
-#define blk_size_this2(__blk) \
-        (*((size_t *)((char *)(__blk) + (size_and_flags & ~BLK_BITMASK) - sizeof(size_t))))
-
 void blk_size_and_flags_set(malblk_t *pblk, size_t size_and_flags)
 {
     pblk->size_this = size_and_flags;
-    blk_size_this2(pblk) = size_and_flags;
 }
 
 size_t blk_size_get(malblk_t *pblk)
@@ -297,25 +259,34 @@ size_t blk_size_get(malblk_t *pblk)
     return pblk->size_this & ~BLK_BITMASK;
 }
 
+void blk_size_set(malblk_t *pblk, size_t size)
+{
+    pblk->size_this = (pblk->size_this & BLK_BITMASK) | size;
+}
+
 int blk_used_get(malblk_t *pblk)
 {
-    return (pblk->size_this & BLK_USED) == BLK_USED;
+    malblk_t *next = (malblk_t *)(((char *)pblk) + blk_size_get(pblk));
+    return (next->size_this & BLK_PREV_USED) == BLK_PREV_USED;
 }
 
 void blk_used_set(malblk_t *pblk)
 {
-    pblk->size_this |= BLK_USED;
+    malblk_t *next = (malblk_t *)(((char *)pblk) + blk_size_get(pblk));
+    next->size_this |= BLK_PREV_USED;
 }
 
 void blk_used_clr(malblk_t *pblk)
 {
-    pblk->size_this &= ~BLK_USED;
+    malblk_t *next = (malblk_t *)(((char *)pblk) + blk_size_get(pblk));
+    next->size_prev = pblk->size_this & ~BLK_PREV_USED;
+    next->size_this &= ~BLK_PREV_USED;
 }
 
-int blk_end_get(malblk_t *pblk)
-{
-    return (pblk->size_this & BLK_END) == BLK_END;
-}
+//int blk_end_get(malblk_t *pblk)
+//{
+//    return (pblk->size_this & BLK_END) == BLK_END;
+//}
 
 
 /* Each chunk looks like this
@@ -332,10 +303,11 @@ int blk_end_get(malblk_t *pblk)
 
 malblk_t *_Sysmem_get(size_t size) {
 
-    malblk_t *retp = NULL;
+    //malblk_t *retp = NULL;
     size = size;
 
-    if (!_Core) {
+    if (!_Core)
+    {
         malloc_debug("getting system memory %08lx\n", size);
         malloc_debug("__ebss__ = %08x\n", &__ebss__);
         malloc_debug("__erom__ = %08x\n", &__eram__);
@@ -346,47 +318,69 @@ malblk_t *_Sysmem_get(size_t size) {
 
         malloc_debug("size = %d\n", more_core_size);
         _Core = (malblk_t *)&__ebss__;
+
+        char *p = (char *)_Core;
+        while ((unsigned long)p & 7)
+        {
+            ++p;
+            --more_core_size;
+        }
+        while ((unsigned long)more_core_size & 7)
+        {
+            --more_core_size;
+        }
+        _Core = (malblk_t *)p;
+
         //memset(_Core, 0, more_core_size);
-        blk_size_and_flags_set(_Core, more_core_size | BLK_END);
+        blk_size_and_flags_set(_Core, more_core_size | BLK_PREV_USED);
+
+        malblk_t *next = (malblk_t *)(((char *)_Core) + more_core_size);
+        next->size_this = 0;
         /* Make this into a free block */
-        retp = (malblk_t *)((char *)_Core + sizeof(size_t));
-        blk_size_and_flags_set(retp, more_core_size - 2 * sizeof(size_t));
-        malloc_debug("getting system memory %08lx\n", _Core);
+//        retp = (malblk_t *)((char *)_Core + sizeof(size_t));
+//        blk_size_and_flags_set(retp, more_core_size - 2 * sizeof(size_t));
+//        blk_size_and_flags_set(((char*)_Core) + more_core_size, more_core_size | BLK_PREV_USED);
+        malloc_debug("getting system memory %08lx %d\n", _Core, _Core->size_this);
+        malloc_debug("getting system memory %08lx %d\n", next, next->size_this);
     }
 
-    return retp;
+    _SysmemCheck();
+
+    return _Core;
 }
 
 #if defined (_MALLOC_DEBUG)
 int _SysmemCheck()
 {
-    malblk_t *p;
     malblk_t *item;
 
-    p = _Core;
-
-    malloc_debug("Core was %x\n", p->size_this);
-
     /* Move to the first item */
-    item = (malblk_t *)((char *)p + sizeof(size_t));
+    item = (malblk_t *)_Core;
+
+    malloc_debug("========================\n");
 
     while (1)
     {
         size_t  size;
         int     flags;
 
-        size  = item->size_this & ~0x3;
-        flags = item->size_this & 0x3;
-        malloc_debug("%08lx %d(%x) f=%x\n", &item->data, size, size, flags);
+        size  = item->size_this & ~0x7;
 
         /* Move to the next item */
-        item = (malblk_t *)((char *)item + size);
+        malblk_t *next_item = (malblk_t *)((char *)item + size);
+        flags = next_item->size_this & 0x7;
 
-        if (item->size_this & 0x2)
+        malloc_debug("%08lx %d(%x) f=%x\n", item, size, size, flags);
+
+        if (blk_size_get(item) == 0)
         {
             break;
         }
+
+        item = next_item;
     }
+
+    malloc_debug("========================\n");
 
     return 0;
 }
@@ -530,83 +524,107 @@ void freelist_remove(malblk_t *blk)
     bktlist_rem_item(bkt);
 }
 
-void *_Anvil_malloc(size_t size)
+void *_Anvil_realloc(void *old_ptr, size_t new_size)
 {
-    malblk_t *rem_blk;
-    malblk_t *p;
-    void *pmem;
+    malblk_t *old_blk;
+    malblk_t *new_blk = NULL;
+    void *new_ptr = NULL;
+    size_t old_size;
 
-    malloc_debug("---------------------------------\n", size);
-    malloc_debug("malloc %d bytes\n", size);
+    malloc_debug("---------------------------------\n", new_size);
+    malloc_debug("realloc %x to %d bytes\n", old_ptr, new_size);
 
-    /* The function will return 0 if an error occurs */
-    if ((size = malblk_round_up(size)) == 0)
+    if (new_size)
     {
-        return NULL;
-    }
-    malloc_debug("size %d bytes\n", size);
-
-    /* Search for some memory in the free list */
-    if ((p = freelist_get(size)) == NULL)
-    {
-        /* Free list is empty, get some system memory */
-        if ((p = _Sysmem_get(size)) == NULL)
+        if ((new_size = malblk_round_up(new_size)) == 0)
         {
-            /* That's it, no more memory */
             return NULL;
         }
+        malloc_debug("size %d bytes\n", new_size);
+
+        if (old_ptr)
+        {
+            old_blk = PTR_TO_MALLOC_BLOCK(old_ptr);
+            old_size = blk_size_get(old_blk);
+
+            if (new_size > old_size)
+            {
+                /* Try to extend to the new size */
+                old_blk = malblk_try_join_next(old_blk, new_size - old_size);
+                old_size = blk_size_get(old_blk);
+            }
+
+            if (new_size == old_size)
+            {
+                malloc_debug("No need to grow size %d bytes\n", new_size);
+                return old_ptr;
+            }
+
+            /* If we get here we either coulnn't extend the block or it's now
+             * too big
+             */
+            if (old_blk->size_this >= new_size)
+            {
+                new_blk = old_blk;
+                old_blk = NULL;
+            }
+        }
+
+        if (!new_blk)
+        {
+            /* Search for some memory in the free list */
+            if ((new_blk = freelist_get(new_size)) == NULL)
+            {
+                /* Free list is empty, get some system memory */
+                if ((new_blk = _Sysmem_get(new_size)) == NULL)
+                {
+                    /* That's it, no more memory */
+                    return NULL;
+                }
+            }
+        }
+
+
+        /* It might have started too big or perhaps we over-extended */
+        if (new_blk->size_this > new_size)
+        {
+            /* Trim the block */
+            malloc_debug("Trimming from %d to %d bytes\n", new_blk->size_this, new_size);
+            malblk_t *rem_blk;
+            if ((rem_blk = malblk_split(new_blk, new_size)) != NULL)
+            {
+                /* Free up the bit we don't need */
+                rem_blk = malblk_try_join_next(rem_blk, 0);
+                freelist_put(rem_blk);
+            }
+        }
+
+        blk_used_set(new_blk);
+
+        new_ptr = MALBLK_TO_PTR(new_blk);
     }
 
-    /* Check whether it's too big and split it if it is */
-    if ((rem_blk = malblk_split(p, size)) != NULL)
+    if (old_ptr)
     {
-        /* Free up the bit we don't need */
-        freelist_put(rem_blk);
+        if (new_ptr)
+        {
+            memcpy(new_ptr, old_ptr, new_size);
+        }
+
+        /* Are the adjacent blocks free ? */
+        old_blk = PTR_TO_MALLOC_BLOCK(old_ptr);
+        old_blk = malblk_try_join_prev(old_blk);
+        old_blk = malblk_try_join_next(old_blk, 0);
+
+        /* Add the block to the bucket list for its size */
+        blk_used_clr(old_blk);
+
+        freelist_put(old_blk);
     }
-    blk_used_set(p);
-    pmem = MALBLK_TO_PTR(p);
 
 #if defined (_MALLOC_DEBUG)
-    malloc_debug("********* Mallocing %08lx\n", pmem);
     _SysmemCheck();
-    malloc_debug("********* Mallocing %08lx\n", pmem);
 #endif
 
-    return pmem;
-}
-
-void _Anvil_free(void *ptr)
-{
-    malblk_t *blk;
-
-    malloc_debug("---------------------------------\n");
-    malloc_debug("free %08lx\n", ptr);
-
-    /* If it's a NULL pointer don't do anything */
-    if (ptr == NULL)
-    {
-        return;
-    }
-
-    blk = PTR_TO_MALLOC_BLOCK(ptr);
-
-    /* Are the adjacent blocks free ? */
-    blk = malblk_try_join_prev(blk);
-    blk = malblk_try_join_next(blk);
-
-    /* Add the block to the bucket list for its size */
-    blk_used_clr(blk);
-
-    freelist_put(blk);
-
-#if defined (_MALLOC_DEBUG)
-    malloc_debug("********* Freeing %08lx\n", ptr);
-    _SysmemCheck();
-    malloc_debug("********* Freeing %08lx\n", ptr);
-#endif
-}
-
-void *_Anvil_realloc(void *__ptr, __SIZE_TYPE__ __size)
-{
-    return NULL;
+    return new_ptr;
 }
