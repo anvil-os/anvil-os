@@ -408,30 +408,41 @@ int _SysmemCheck()
     /* Move to the first item */
     item = (malblk_t *)_Core;
 
-    malloc_debug("========================\n");
+    malloc_debug("=========================\n");
 
     while (1)
     {
         size_t  size;
         int     flags;
 
-        size  = item->size_this & ~0x7;
+        // Record the size of this item
+        size = item->size_this & ~0x7;
 
-        /* Move to the next item */
+        // Move to the next item so we can see the in-use flag
         malblk_t *next_item = (malblk_t *)((char *)item + size);
         flags = next_item->size_this & 0x7;
-
-        malloc_debug("%08lx %d(%x) f=%x\n", item, size, size, flags);
 
         if (blk_size_get(item) == 0)
         {
             break;
         }
 
+        // Check that the 2nd size is correct if the item is free
+        if (!flags)
+        {
+            if ((item->size_this & ~0x7) != next_item->size_prev)
+            {
+                malloc_debug("Bad 2nd size!!");
+            }
+        }
+
+        // Print info for item
+        malloc_debug(" %08lx %4d(%4x)   %s\n", item, size, size, flags?"*":"");
+
         item = next_item;
     }
 
-    malloc_debug("========================\n");
+    malloc_debug("=========================\n");
 
     return 0;
 }
@@ -495,6 +506,7 @@ void initialise()
 
     // XXX: Todo: Souldn't heap_len be reduced enough to fit the header of the next block??
     malblk_t *next = (malblk_t *)(((char *)_Core) + heap_len);
+    next->size_prev = heap_len;
     next->size_this = 0;
 
     /* Make this into a free block */
@@ -503,7 +515,9 @@ void initialise()
 
     freelist_put(_Core);
 
+#if defined (_MALLOC_DEBUG)
     _SysmemCheck();
+#endif
 
 //    return _Core;
 }
@@ -582,6 +596,7 @@ void *_Anvil_realloc(void *old_ptr, size_t new_size)
             {
                 /* Free up the bit we don't need */
                 rem_blk = malblk_try_join_next(rem_blk, 0);
+                blk_used_clr(rem_blk);
                 freelist_put(rem_blk);
             }
         }
