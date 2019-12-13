@@ -46,7 +46,6 @@ static malblk_t *freelist_get(size_t size);
 static void freelist_put(malblk_t *blk);
 static void freelist_remove(malblk_t *blk);
 
-static malblk_t *_Sysmem_get(size_t size);
 #if defined (_MALLOC_DEBUG)
 static int _SysmemCheck(void);
 #endif
@@ -283,72 +282,6 @@ void blk_used_clr(malblk_t *pblk)
     next->size_this &= ~BLK_PREV_USED;
 }
 
-//int blk_end_get(malblk_t *pblk)
-//{
-//    return (pblk->size_this & BLK_END) == BLK_END;
-//}
-
-
-/* Each chunk looks like this
- *
- *
- *     chunk *next
- *     size_t chunk size | BLK_END
- *         ...  the mem between the 2 size_ts is used by malloc
- *         ...  chunk size - 2 size_t bytes of usable data
- *         ...
- *     size_t chunk size | BLK_END
- *
- */
-
-malblk_t *_Sysmem_get(size_t size) {
-
-    //malblk_t *retp = NULL;
-    size = size;
-
-    if (!_Core)
-    {
-        malloc_debug("getting system memory %08lx\n", size);
-        malloc_debug("__ebss__ = %08x\n", &__ebss__);
-        malloc_debug("__erom__ = %08x\n", &__eram__);
-
-        size_t more_core_size = &__eram__ - &__ebss__;
-        // Leave space for the main stack
-        more_core_size -= 1024;
-
-        malloc_debug("size = %d\n", more_core_size);
-        _Core = (malblk_t *)&__ebss__;
-
-        char *p = (char *)_Core;
-        while ((unsigned long)p & 7)
-        {
-            ++p;
-            --more_core_size;
-        }
-        while ((unsigned long)more_core_size & 7)
-        {
-            --more_core_size;
-        }
-        _Core = (malblk_t *)p;
-
-        //memset(_Core, 0, more_core_size);
-        blk_size_and_flags_set(_Core, more_core_size | BLK_PREV_USED);
-
-        malblk_t *next = (malblk_t *)(((char *)_Core) + more_core_size);
-        next->size_this = 0;
-        /* Make this into a free block */
-//        retp = (malblk_t *)((char *)_Core + sizeof(size_t));
-//        blk_size_and_flags_set(retp, more_core_size - 2 * sizeof(size_t));
-//        blk_size_and_flags_set(((char*)_Core) + more_core_size, more_core_size | BLK_PREV_USED);
-        malloc_debug("getting system memory %08lx %d\n", _Core, _Core->size_this);
-        malloc_debug("getting system memory %08lx %d\n", next, next->size_this);
-    }
-
-    _SysmemCheck();
-
-    return _Core;
-}
-
 #if defined (_MALLOC_DEBUG)
 int _SysmemCheck()
 {
@@ -398,19 +331,7 @@ struct bucket
 };
 typedef struct bucket bucket_t;
 
-#define _B(i) { &Bucket[(i)], &Bucket[(i)] }
-static bucket_t Bucket[MAX_BUCKETS] = {
-    _B( 0), _B( 1), _B( 2), _B( 3), _B( 4), _B( 5), _B( 6), _B( 7),
-    _B( 8), _B( 9), _B(10), _B(11), _B(12), _B(13), _B(14), _B(15),
-    _B(16), _B(17), _B(18), _B(19), _B(20), _B(21), _B(22), _B(23),
-    _B(24), _B(25), _B(26), _B(27), _B(28), _B(29), _B(30), _B(31),
-    _B(32), _B(33), _B(34), _B(35), _B(36), _B(37), _B(38), _B(39),
-    _B(40), _B(41), _B(42), _B(43), _B(44), _B(45), _B(46), _B(47),
-    _B(48), _B(49), _B(50), _B(51), _B(52), _B(53), _B(54), _B(55),
-    _B(56), _B(57), _B(58), _B(59), _B(60), _B(61), _B(62), _B(63),
-    _B(64),
-};
-#undef _B
+bucket_t *Bucket;
 
 static int get_bkt_num(size_t size)
 {
@@ -524,12 +445,82 @@ void freelist_remove(malblk_t *blk)
     bktlist_rem_item(bkt);
 }
 
+static int initialised = 0;
+
+void initialise()
+{
+    size_t alignment;
+    char *heap_start;
+    size_t heap_len;
+    size_t buckets_len;
+    int i;
+
+    // In this version of malloc we take all available memory and use it to create the heap
+    malloc_debug("Malloc initialise\n");
+    malloc_debug("__ebss__ = %08x\n", &__ebss__);
+    malloc_debug("__erom__ = %08x\n", &__eram__);
+
+    // We need to align to 2 x sizeof(size_t)
+    alignment = 2 * sizeof(size_t);
+    malloc_debug("Aligning to %d bytes\n", alignment);
+
+    heap_start = &__ebss__;
+    while ((uintptr_t)heap_start & (alignment - 1))
+    {
+        ++heap_start;
+    }
+    malloc_debug("heap_start  = %08x\n", heap_start);
+
+    // How much heap have we got?
+    heap_len = &__eram__ - heap_start;
+    malloc_debug("heap_len    = %08x\n", heap_len);
+
+    // Carve off some for our bucket list
+    buckets_len = MAX_BUCKETS * sizeof(bucket_t);
+    malloc_debug("buckets_len = %08x\n", buckets_len);
+
+    Bucket = (bucket_t *)heap_start;
+    heap_start = (char *)(Bucket + MAX_BUCKETS);
+    malloc_debug("heap_start  = %08x\n", heap_start);
+
+    for (i=0; i<MAX_BUCKETS; ++i)
+    {
+        Bucket[i].prev = Bucket[i].next = &Bucket[i];
+    }
+
+    _Core = (malblk_t *)heap_start;
+    heap_len -= 1024;
+
+    memset(_Core, 0, heap_len);
+
+    blk_size_and_flags_set(_Core, heap_len | BLK_PREV_USED);
+
+    malblk_t *next = (malblk_t *)(((char *)_Core) + heap_len);
+    next->size_this = 0;
+
+    /* Make this into a free block */
+    malloc_debug("getting system memory %08lx %d\n", _Core, _Core->size_this);
+    malloc_debug("getting system memory %08lx %d\n", next, next->size_this);
+
+    freelist_put(_Core);
+
+    _SysmemCheck();
+
+//    return _Core;
+}
+
 void *_Anvil_realloc(void *old_ptr, size_t new_size)
 {
     malblk_t *old_blk;
     malblk_t *new_blk = NULL;
     void *new_ptr = NULL;
     size_t old_size;
+
+    if (!initialised)
+    {
+        initialise();
+        initialised = 1;
+    }
 
     malloc_debug("---------------------------------\n", new_size);
     malloc_debug("realloc %x to %d bytes\n", old_ptr, new_size);
@@ -575,15 +566,10 @@ void *_Anvil_realloc(void *old_ptr, size_t new_size)
             /* Search for some memory in the free list */
             if ((new_blk = freelist_get(new_size)) == NULL)
             {
-                /* Free list is empty, get some system memory */
-                if ((new_blk = _Sysmem_get(new_size)) == NULL)
-                {
-                    /* That's it, no more memory */
-                    return NULL;
-                }
+                /* That's it, no more memory */
+                return NULL;
             }
         }
-
 
         /* It might have started too big or perhaps we over-extended */
         if (new_blk->size_this > new_size)
