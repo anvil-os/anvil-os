@@ -21,202 +21,79 @@
 #define MALLOC_ALIGN        (1 << MALLOC_ALIGN_LOG)
 #define MALLOC_ALIGN_MASK   ((1 << MALLOC_ALIGN_LOG) - 1)
 
-/* These are stored in the low bits of size_this - room for (or 4) */
-#define BLK_PREV_USED       (1<<0)
-#define BLK_BITMASK         (BLK_PREV_USED)
+/* These are stored in the low bits of size_this - room for 3 (or 4) */
+#define BLK_PREV_IN_USE       (1<<0)
+#define BLK_BITMASK         (BLK_PREV_IN_USE)
 
 #define MALBLK_TO_PTR(__p) ((char *)__p + 2 * sizeof(size_t))
 #define PTR_TO_MALLOC_BLOCK(__p) ((malblk_t *)((char *)__p - 2 * sizeof(size_t)))
 
+static const size_t s_min_blk_size = 2 * sizeof(size_t) + 2 * sizeof(void *);
+
 struct malblk
 {
-    /*
-     * size_this is the entire size of the malloc block. This includes the
-     * user data and the 2 size_this-es
-     */
+    // This is the size of the previous block. It is only valid if the
+    // previous block is free. If the previous block is in use user data
+    // will creep over these bytes
     size_t size_prev;
+
+    // This is the entire size of the this malblk. This includes the 2
+    // size_t and the user data
     size_t size_this;
-    /* The user area starts here */
+
+    // The user area starts here. When the block is free these pointers are
+    // used to hold the data in a free list
     struct malblk *prev;
     struct malblk *next;
 };
 typedef struct malblk malblk_t;
 
-static malblk_t *freelist_get(size_t size);
-static void freelist_put(malblk_t *blk);
-static void freelist_remove(malblk_t *blk);
+////////////////////////////////////////////////
+/// Access functions for malblk_t
+////////////////////////////////////////////////
 
-#if defined (_MALLOC_DEBUG)
-static int _SysmemCheck(void);
-#endif
-
-static malblk_t *malblk_split(malblk_t *blk, size_t size);
-static size_t malblk_round_up(size_t val);
-static malblk_t *malblk_try_join_prev(malblk_t *blk);
-static malblk_t *malblk_try_join_next(malblk_t *blk, size_t extra_req);
-
-
-static void blk_size_and_flags_set(malblk_t *pblk, size_t size_and_flags);
-void blk_size_set(malblk_t *pblk, size_t size);
-static size_t blk_size_get(malblk_t *pblk);
-static void blk_used_set(malblk_t *pblk);
-static void blk_used_clr(malblk_t *pblk);
-
-static malblk_t *blk_prev(malblk_t *pblk);
-static malblk_t *blk_next(malblk_t *pblk);
-static int blk_used_get(malblk_t *pblk);
-//static int blk_end_get(malblk_t *pblk);
-
-static malblk_t *_Core;
-
-extern char __ebss__;
-extern char __eram__;
-
-static const size_t s_min_blk_size = 2 * sizeof(size_t) + 2 * sizeof(void *);
-
-malblk_t *malblk_split(malblk_t *blk, size_t new_size)
+static void blk_size_and_flags_set(malblk_t *pblk, size_t size_and_flags)
 {
-    /* Split a block into 2 */
-
-    malblk_t *rem_blk;
-    size_t rem_size;
-    size_t curr_size;
-
-    /* Size of the block we are splitting */
-    curr_size = blk_size_get(blk);
-
-    malloc_debug("splitting %d bytes, split_size=%d\n", curr_size, new_size);
-
-    /* Check that the split is possible. Both parts must end up > (2 size_t + 2 void *) */
-    if (new_size < s_min_blk_size || new_size + s_min_blk_size > curr_size)
-    {
-        malloc_debug("Split not possible %u %u %u\n", curr_size, s_min_blk_size, new_size);
-        /* It's only just big enough so return NULL to indicate no split */
-        return NULL;
-    }
-
-    /* We'll split off from the front of the blk. Firstly we figure out where
-     * the remaining block will start
-     */
-    rem_blk = (malblk_t *)((char *)blk + new_size);
-    rem_size = curr_size - new_size;
-    malloc_debug("rem_size=%d\n", rem_size);
-    blk_size_set(rem_blk, rem_size);
-    blk_size_set(blk, new_size);
-
-    return rem_blk;
+    pblk->size_this = size_and_flags;
 }
 
-size_t malblk_round_up(size_t val)
+static size_t blk_size_get(malblk_t *pblk)
 {
-    /*
-     * The minimum allocable size is 2 ptrs. In fact this is the granularity
-     * of the allocator.
-     *
-     * Each block must also contain 2 size_t fields. Therefore roundup as
-     * follows.
-     *
-     *  0 - 12 bytes >> 4 ptrs >> 16 bytes
-     * 13 - 20 bytes >> 6 ptrs >> 24 bytes
-     * 21 - 28 bytes >> 8 ptrs >> 32 bytes
-     * etc.
-     *
-     * For 64 bit libs the values double.
-     *
-     *  0 - 24 bytes >> 4 ptrs >> 32 bytes
-     * 25 - 40 bytes >> 6 ptrs >> 48 bytes
-     * 41 - 56 bytes >> 8 ptrs >> 64 bytes
-     * etc.
-     */
-
-    if (val < 5)
-    {
-        val = 5;
-    }
-
-    val -= sizeof(size_t);
-    val += MALLOC_ALIGN_MASK;
-    val &= ~MALLOC_ALIGN_MASK;
-    val += 2 * sizeof(void *);
-
-    /* Check that we didn't overflow */
-    if (val > (SIZE_MAX - 4 * sizeof(void*)))
-    {
-        malloc_debug("OFLOW: size=%d\n", val);
-        return 0;
-    }
-
-    return val;
+    return pblk->size_this & ~BLK_BITMASK;
 }
 
-malblk_t *malblk_try_join_prev(malblk_t *blk)
+static void blk_size_set(malblk_t *pblk, size_t size)
 {
-    /* Join blk with the prev block but only if the prev block is not busy */
-    malblk_t *prev;
-    size_t total;
-
-    malloc_debug("%08x malblk_try_join_prev - ", blk);
-
-    prev = blk_prev(blk);
-    if (prev == NULL)
-    {
-        malloc_debug("prev in use\n");
-        return blk;
-    }
-
-    /* Take the prev from the free list */
-    freelist_remove(prev);
-
-    /* Now join them */
-    total = blk_size_get(prev) + blk_size_get(blk);
-    malloc_debug("done, join %d %d ", blk_size_get(prev), blk_size_get(blk));
-    blk_size_set(prev, total);
-    malloc_debug("got %d\n", total);
-
-    return prev;
+    pblk->size_this = (pblk->size_this & BLK_BITMASK) | size;
 }
 
-malblk_t *malblk_try_join_next(malblk_t *blk, size_t extra_req)
+static int blk_used_get(malblk_t *pblk)
 {
-    /* Join blk with the next block but only if the next block is not busy */
-    malblk_t *next;
-    size_t total;
-
-    malloc_debug("malblk_try_join_next - ");
-
-    next = blk_next(blk);
-
-    if (!next || (blk_size_get(next) < extra_req) || blk_used_get(next))
-    {
-        malloc_debug("fail\n");
-        return blk;
-    }
-
-    malloc_debug("used=%d\n", blk_used_get(next));
-
-    /* Take the next from the free list */
-    freelist_remove(next);
-
-    /* Now join them */
-    total = blk_size_get(blk) + blk_size_get(next);
-    malloc_debug("done, join %d %d ", blk_size_get(blk), blk_size_get(next));
-    blk_size_set(blk, total);
-    malloc_debug("got %d\n", total);
-
-    return blk;
+    malblk_t *next = (malblk_t *)(((char *)pblk) + blk_size_get(pblk));
+    return (next->size_this & BLK_PREV_IN_USE) == BLK_PREV_IN_USE;
 }
 
-/*
- *
- * Moving forward or back through a 'zone' of blocks
- *
- *
- */
+static void blk_used_set(malblk_t *pblk)
+{
+    malblk_t *next = (malblk_t *)(((char *)pblk) + blk_size_get(pblk));
+    next->size_this |= BLK_PREV_IN_USE;
+}
+
+static void blk_used_clr(malblk_t *pblk)
+{
+    malblk_t *next = (malblk_t *)(((char *)pblk) + blk_size_get(pblk));
+    next->size_prev = pblk->size_this & ~BLK_PREV_IN_USE;
+    next->size_this &= ~BLK_PREV_IN_USE;
+}
+
+////////////////////////////////////////////////
+/// Functions for navigating blocks
+////////////////////////////////////////////////
 
 static malblk_t *blk_prev(malblk_t *pblk)
 {
     /* This function returns the previous block BUT ONLY IF THE BLOCK IS FREE */
-    if (pblk->size_this & BLK_PREV_USED)
+    if (pblk->size_this & BLK_PREV_IN_USE)
     {
         return NULL;
     }
@@ -241,83 +118,9 @@ static malblk_t *blk_next(malblk_t *pblk)
     return pnext;
 }
 
-/*
- *
- * Access functions for the members of malblk_t
- *
- *
- */
-
-void blk_size_and_flags_set(malblk_t *pblk, size_t size_and_flags)
-{
-    pblk->size_this = size_and_flags;
-}
-
-size_t blk_size_get(malblk_t *pblk)
-{
-    return pblk->size_this & ~BLK_BITMASK;
-}
-
-void blk_size_set(malblk_t *pblk, size_t size)
-{
-    pblk->size_this = (pblk->size_this & BLK_BITMASK) | size;
-}
-
-int blk_used_get(malblk_t *pblk)
-{
-    malblk_t *next = (malblk_t *)(((char *)pblk) + blk_size_get(pblk));
-    return (next->size_this & BLK_PREV_USED) == BLK_PREV_USED;
-}
-
-void blk_used_set(malblk_t *pblk)
-{
-    malblk_t *next = (malblk_t *)(((char *)pblk) + blk_size_get(pblk));
-    next->size_this |= BLK_PREV_USED;
-}
-
-void blk_used_clr(malblk_t *pblk)
-{
-    malblk_t *next = (malblk_t *)(((char *)pblk) + blk_size_get(pblk));
-    next->size_prev = pblk->size_this & ~BLK_PREV_USED;
-    next->size_this &= ~BLK_PREV_USED;
-}
-
-#if defined (_MALLOC_DEBUG)
-int _SysmemCheck()
-{
-    malblk_t *item;
-
-    /* Move to the first item */
-    item = (malblk_t *)_Core;
-
-    malloc_debug("========================\n");
-
-    while (1)
-    {
-        size_t  size;
-        int     flags;
-
-        size  = item->size_this & ~0x7;
-
-        /* Move to the next item */
-        malblk_t *next_item = (malblk_t *)((char *)item + size);
-        flags = next_item->size_this & 0x7;
-
-        malloc_debug("%08lx %d(%x) f=%x\n", item, size, size, flags);
-
-        if (blk_size_get(item) == 0)
-        {
-            break;
-        }
-
-        item = next_item;
-    }
-
-    malloc_debug("========================\n");
-
-    return 0;
-}
-#endif
+////////////////////////////////////////////////
+/// Functions for managing the free lists
+////////////////////////////////////////////////
 
 #define MAX_BUCKETS (65)
 
@@ -390,7 +193,7 @@ static void bktlist_add_head(bucket_t *list, bucket_t *item)
     list->next = item;
 }
 
-malblk_t *freelist_get(size_t size)
+static malblk_t *freelist_get(size_t size)
 {
     bucket_t *pbkt;
     bucket_t *item;
@@ -422,7 +225,7 @@ malblk_t *freelist_get(size_t size)
     return NULL;
 }
 
-void freelist_put(malblk_t *blk)
+static void freelist_put(malblk_t *blk)
 {
     bucket_t *pbkt;
     size_t size;
@@ -438,12 +241,201 @@ void freelist_put(malblk_t *blk)
     bktlist_add_head(pbkt, MALBLK_TO_BUCKET(blk));
 }
 
-void freelist_remove(malblk_t *blk)
+static void freelist_remove(malblk_t *blk)
 {
     bucket_t *bkt;
     bkt = MALBLK_TO_BUCKET(blk);
     bktlist_rem_item(bkt);
 }
+
+////////////////////////////////////////////////
+/// Functions for splitting and joining blocks
+////////////////////////////////////////////////
+
+static malblk_t *malblk_split(malblk_t *blk, size_t new_size)
+{
+    /* Split a block into 2 */
+
+    malblk_t *rem_blk;
+    size_t rem_size;
+    size_t curr_size;
+
+    /* Size of the block we are splitting */
+    curr_size = blk_size_get(blk);
+
+    malloc_debug("splitting %d bytes, split_size=%d\n", curr_size, new_size);
+
+    /* Check that the split is possible. Both parts must end up > (2 size_t + 2 void *) */
+    if (new_size < s_min_blk_size || new_size + s_min_blk_size > curr_size)
+    {
+        malloc_debug("Split not possible %u %u %u\n", curr_size, s_min_blk_size, new_size);
+        /* It's only just big enough so return NULL to indicate no split */
+        return NULL;
+    }
+
+    /* We'll split off from the front of the blk. Firstly we figure out where
+     * the remaining block will start
+     */
+    rem_blk = (malblk_t *)((char *)blk + new_size);
+    rem_size = curr_size - new_size;
+    malloc_debug("rem_size=%d\n", rem_size);
+    blk_size_set(rem_blk, rem_size);
+    blk_size_set(blk, new_size);
+
+    return rem_blk;
+}
+
+static malblk_t *malblk_try_join_prev(malblk_t *blk)
+{
+    /* Join blk with the prev block but only if the prev block is not busy */
+    malblk_t *prev;
+    size_t total;
+
+    malloc_debug("%08x malblk_try_join_prev - ", blk);
+
+    prev = blk_prev(blk);
+    if (prev == NULL)
+    {
+        malloc_debug("prev in use\n");
+        return blk;
+    }
+
+    /* Take the prev from the free list */
+    freelist_remove(prev);
+
+    /* Now join them */
+    total = blk_size_get(prev) + blk_size_get(blk);
+    malloc_debug("done, join %d %d ", blk_size_get(prev), blk_size_get(blk));
+    blk_size_set(prev, total);
+    malloc_debug("got %d\n", total);
+
+    return prev;
+}
+
+static malblk_t *malblk_try_join_next(malblk_t *blk, size_t extra_req)
+{
+    /* Join blk with the next block but only if the next block is not busy */
+    malblk_t *next;
+    size_t total;
+
+    malloc_debug("malblk_try_join_next - ");
+
+    next = blk_next(blk);
+
+    if (!next || (blk_size_get(next) < extra_req) || blk_used_get(next))
+    {
+        malloc_debug("fail\n");
+        return blk;
+    }
+
+    malloc_debug("used=%d\n", blk_used_get(next));
+
+    /* Take the next from the free list */
+    freelist_remove(next);
+
+    /* Now join them */
+    total = blk_size_get(blk) + blk_size_get(next);
+    malloc_debug("done, join %d %d ", blk_size_get(blk), blk_size_get(next));
+    blk_size_set(blk, total);
+    malloc_debug("got %d\n", total);
+
+    return blk;
+}
+
+
+
+#if defined (_MALLOC_DEBUG)
+static int _SysmemCheck(void);
+#endif
+
+static size_t malblk_round_up(size_t val);
+
+
+static malblk_t *_Core;
+
+extern char __ebss__;
+extern char __eram__;
+
+
+
+size_t malblk_round_up(size_t val)
+{
+    /*
+     * The minimum allocable size is 2 ptrs. In fact this is the granularity
+     * of the allocator.
+     *
+     * Each block must also contain 2 size_t fields. Therefore roundup as
+     * follows.
+     *
+     *  0 - 12 bytes >> 4 ptrs >> 16 bytes
+     * 13 - 20 bytes >> 6 ptrs >> 24 bytes
+     * 21 - 28 bytes >> 8 ptrs >> 32 bytes
+     * etc.
+     *
+     * For 64 bit libs the values double.
+     *
+     *  0 - 24 bytes >> 4 ptrs >> 32 bytes
+     * 25 - 40 bytes >> 6 ptrs >> 48 bytes
+     * 41 - 56 bytes >> 8 ptrs >> 64 bytes
+     * etc.
+     */
+
+    if (val < 5)
+    {
+        val = 5;
+    }
+
+    val -= sizeof(size_t);
+    val += MALLOC_ALIGN_MASK;
+    val &= ~MALLOC_ALIGN_MASK;
+    val += 2 * sizeof(void *);
+
+    /* Check that we didn't overflow */
+    if (val > (SIZE_MAX - 4 * sizeof(void*)))
+    {
+        malloc_debug("OFLOW: size=%d\n", val);
+        return 0;
+    }
+
+    return val;
+}
+
+#if defined (_MALLOC_DEBUG)
+int _SysmemCheck()
+{
+    malblk_t *item;
+
+    /* Move to the first item */
+    item = (malblk_t *)_Core;
+
+    malloc_debug("========================\n");
+
+    while (1)
+    {
+        size_t  size;
+        int     flags;
+
+        size  = item->size_this & ~0x7;
+
+        /* Move to the next item */
+        malblk_t *next_item = (malblk_t *)((char *)item + size);
+        flags = next_item->size_this & 0x7;
+
+        malloc_debug("%08lx %d(%x) f=%x\n", item, size, size, flags);
+
+        if (blk_size_get(item) == 0)
+        {
+            break;
+        }
+
+        item = next_item;
+    }
+
+    malloc_debug("========================\n");
+
+    return 0;
+}
+#endif
 
 static int initialised = 0;
 
@@ -459,6 +451,12 @@ void initialise()
     malloc_debug("Malloc initialise\n");
     malloc_debug("__ebss__ = %08x\n", &__ebss__);
     malloc_debug("__erom__ = %08x\n", &__eram__);
+    malloc_debug("s_min_blk_size = %d\n", s_min_blk_size);
+
+//    for (i=0; i<9000; ++i)
+//    {
+//        malloc_debug("% 5d: % 5d % 5d\n", i, malblk_round_up(i), get_bkt_num(malblk_round_up(i)));
+//    }
 
     // We need to align to 2 x sizeof(size_t)
     alignment = 2 * sizeof(size_t);
@@ -493,8 +491,9 @@ void initialise()
 
     memset(_Core, 0, heap_len);
 
-    blk_size_and_flags_set(_Core, heap_len | BLK_PREV_USED);
+    blk_size_and_flags_set(_Core, heap_len | BLK_PREV_IN_USE);
 
+    // XXX: Todo: Souldn't heap_len be reduced enough to fit the header of the next block??
     malblk_t *next = (malblk_t *)(((char *)_Core) + heap_len);
     next->size_this = 0;
 
@@ -511,8 +510,6 @@ void initialise()
 
 void *_Anvil_realloc(void *old_ptr, size_t new_size)
 {
-    malblk_t *old_blk;
-    malblk_t *new_blk = NULL;
     void *new_ptr = NULL;
     size_t old_size;
 
@@ -527,6 +524,8 @@ void *_Anvil_realloc(void *old_ptr, size_t new_size)
 
     if (new_size)
     {
+        malblk_t *new_blk = NULL;
+
         if ((new_size = malblk_round_up(new_size)) == 0)
         {
             return NULL;
@@ -535,6 +534,8 @@ void *_Anvil_realloc(void *old_ptr, size_t new_size)
 
         if (old_ptr)
         {
+            malblk_t *old_blk;
+
             old_blk = PTR_TO_MALLOC_BLOCK(old_ptr);
             old_size = blk_size_get(old_blk);
 
@@ -554,7 +555,7 @@ void *_Anvil_realloc(void *old_ptr, size_t new_size)
             /* If we get here we either coulnn't extend the block or it's now
              * too big
              */
-            if (old_blk->size_this >= new_size)
+            if (blk_size_get(old_blk) >= new_size)
             {
                 new_blk = old_blk;
                 old_blk = NULL;
@@ -572,10 +573,10 @@ void *_Anvil_realloc(void *old_ptr, size_t new_size)
         }
 
         /* It might have started too big or perhaps we over-extended */
-        if (new_blk->size_this > new_size)
+        if (blk_size_get(new_blk) > new_size)
         {
             /* Trim the block */
-            malloc_debug("Trimming from %d to %d bytes\n", new_blk->size_this, new_size);
+            malloc_debug("Trimming from %d to %d bytes\n", blk_size_get(new_blk), new_size);
             malblk_t *rem_blk;
             if ((rem_blk = malblk_split(new_blk, new_size)) != NULL)
             {
@@ -594,10 +595,14 @@ void *_Anvil_realloc(void *old_ptr, size_t new_size)
     {
         if (new_ptr)
         {
-            memcpy(new_ptr, old_ptr, new_size);
+            // XXX: Todo: This should copy min(old, new)
+            // Actually we only get here if new > old because other wise we would have
+            // simply trimmed above
+            memcpy(new_ptr, old_ptr, old_size);
         }
 
         /* Are the adjacent blocks free ? */
+        malblk_t *old_blk;
         old_blk = PTR_TO_MALLOC_BLOCK(old_ptr);
         old_blk = malblk_try_join_prev(old_blk);
         old_blk = malblk_try_join_next(old_blk, 0);
