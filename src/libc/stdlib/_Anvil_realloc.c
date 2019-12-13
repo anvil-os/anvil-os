@@ -12,14 +12,13 @@
 #define malloc_debug(...) printf(__VA_ARGS__)
 #endif
 
+#define ALIGNMENT (2 * sizeof(size_t))
+
 #if (__SIZEOF_SIZE_T__ == 4)
 #define MALLOC_ALIGN_LOG    (3)
 #else
 #define MALLOC_ALIGN_LOG    (4)
 #endif
-
-#define MALLOC_ALIGN        (1 << MALLOC_ALIGN_LOG)
-#define MALLOC_ALIGN_MASK   ((1 << MALLOC_ALIGN_LOG) - 1)
 
 /* These are stored in the low bits of size_this - room for 3 (or 4) */
 #define BLK_PREV_IN_USE       (1<<0)
@@ -342,14 +341,76 @@ static malblk_t *malblk_try_join_next(malblk_t *blk, size_t extra_req)
     return blk;
 }
 
+////////////////////////////////////////////////
+/// Convert requested bytes to block size
+////////////////////////////////////////////////
+
+static size_t malblk_size(size_t requested_size)
+{
+    size_t block_size;
+
+    // Check that we won't overflow
+    if (requested_size > SIZE_MAX - 4 * sizeof(size_t))
+    {
+        malloc_debug("OFLOW: size=%d\n", requested_size);
+        return 0;
+    }
+
+    //
+    // We need to add room for the block header. 2 * size_t to store the size
+    // of the previous block and this one.
+    //
+    // The first few bytes of a block contain the size of the previous block.
+    // However, by making a rule that size_prev is only valid if the previous
+    // block is free we get to use the first size_t bytes of the next block.
+    //
+    // So a block in use looks like this
+    //
+    //   size_t size_prev
+    //   size_t size_this
+    //   data [  ]  ------------------------|
+    //   ..                                 |--- total size >= requested_size
+    //   sizeof(size_t) from next block ----|
+    //
+
+    // As above, add 2 size_t but subtract 1
+    block_size = requested_size + sizeof(size_t);
+
+    // To ensure that each block starts on a 2 x size_t boundary we must
+    // round up the block size to that alignment
+    block_size += (ALIGNMENT - 1);
+    block_size &= ~(ALIGNMENT - 1);
+
+    // To ensure that blocks have enough room for next and prev pointers for
+    // the free lists, our minimum block size is 2 size_t + 2 void*
+    if (block_size < (2 * sizeof(size_t) + 2 * sizeof(void *)))
+    {
+        block_size = 2 * sizeof(size_t) + 2 * sizeof(void *);
+    }
+
+    //  For 32bit size_t
+    //    16 bytes - can hold 1 to 12 bytes
+    //    24 bytes - can hold 13 to 20 bytes
+    //    32 bytes - can hold 21 to 28 bytes
+    //    40 bytes - can hold 29 to 36 bytes
+    //    48 bytes - can hold 37 to 44 bytes
+    //    etc.
+    //
+    //  For 64 bit libs the values double.
+    //
+    //    32 bytes - can hold 1 to 24 bytes
+    //    48 bytes - can hold 25 to 40 bytes
+    //    64 bytes - can hold 41 to 56 bytes
+    //    etc.
+    //
+
+    return block_size;
+}
 
 
 #if defined (_MALLOC_DEBUG)
 static int _SysmemCheck(void);
 #endif
-
-static size_t malblk_round_up(size_t val);
-
 
 static malblk_t *_Core;
 
@@ -357,48 +418,6 @@ extern char __ebss__;
 extern char __eram__;
 
 
-
-size_t malblk_round_up(size_t val)
-{
-    /*
-     * The minimum allocable size is 2 ptrs. In fact this is the granularity
-     * of the allocator.
-     *
-     * Each block must also contain 2 size_t fields. Therefore roundup as
-     * follows.
-     *
-     *  0 - 12 bytes >> 4 ptrs >> 16 bytes
-     * 13 - 20 bytes >> 6 ptrs >> 24 bytes
-     * 21 - 28 bytes >> 8 ptrs >> 32 bytes
-     * etc.
-     *
-     * For 64 bit libs the values double.
-     *
-     *  0 - 24 bytes >> 4 ptrs >> 32 bytes
-     * 25 - 40 bytes >> 6 ptrs >> 48 bytes
-     * 41 - 56 bytes >> 8 ptrs >> 64 bytes
-     * etc.
-     */
-
-    if (val < 5)
-    {
-        val = 5;
-    }
-
-    val -= sizeof(size_t);
-    val += MALLOC_ALIGN_MASK;
-    val &= ~MALLOC_ALIGN_MASK;
-    val += 2 * sizeof(void *);
-
-    /* Check that we didn't overflow */
-    if (val > (SIZE_MAX - 4 * sizeof(void*)))
-    {
-        malloc_debug("OFLOW: size=%d\n", val);
-        return 0;
-    }
-
-    return val;
-}
 
 #if defined (_MALLOC_DEBUG)
 int _SysmemCheck()
@@ -452,7 +471,6 @@ static int initialised = 0;
 
 void initialise()
 {
-    size_t alignment;
     char *heap_start;
     size_t heap_len;
     size_t buckets_len;
@@ -464,17 +482,14 @@ void initialise()
     malloc_debug("__erom__ = %08x\n", &__eram__);
     malloc_debug("s_min_blk_size = %d\n", s_min_blk_size);
 
-//    for (i=0; i<9000; ++i)
-//    {
-//        malloc_debug("% 5d: % 5d % 5d\n", i, malblk_round_up(i), get_bkt_num(malblk_round_up(i)));
-//    }
+    for (i=0; i<100; ++i)
+    {
+        malloc_debug("% 5d: % 5d % 5d\n", i, malblk_size(i), get_bkt_num(malblk_size(i)));
+    }
 
     // We need to align to 2 x sizeof(size_t)
-    alignment = 2 * sizeof(size_t);
-    malloc_debug("Aligning to %d bytes\n", alignment);
-
     heap_start = &__ebss__;
-    while ((uintptr_t)heap_start & (alignment - 1))
+    while ((uintptr_t)heap_start & (ALIGNMENT - 1))
     {
         ++heap_start;
     }
@@ -540,7 +555,7 @@ void *_Anvil_realloc(void *old_ptr, size_t new_size)
     {
         malblk_t *new_blk = NULL;
 
-        if ((new_size = malblk_round_up(new_size)) == 0)
+        if ((new_size = malblk_size(new_size)) == 0)
         {
             return NULL;
         }
