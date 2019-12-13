@@ -3,11 +3,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define DEBUG
-#if !defined (DEBUG)
+#define MALLOC_DEBUG
+#if !defined (MALLOC_DEBUG)
 #define malloc_debug(...)
 #else
-#define _MALLOC_DEBUG
+#define MALLOC_DEBUG
 #include <stdio.h>
 #define malloc_debug(...) printf(__VA_ARGS__)
 #endif
@@ -352,7 +352,7 @@ static size_t malblk_size(size_t requested_size)
     // Check that we won't overflow
     if (requested_size > SIZE_MAX - 4 * sizeof(size_t))
     {
-        malloc_debug("OFLOW: size=%d\n", requested_size);
+        malloc_debug("malloc: requested_size %d too big\n", requested_size);
         return 0;
     }
 
@@ -408,7 +408,7 @@ static size_t malblk_size(size_t requested_size)
 }
 
 
-#if defined (_MALLOC_DEBUG)
+#if defined (MALLOC_DEBUG)
 static int _SysmemCheck(void);
 #endif
 
@@ -419,7 +419,7 @@ extern char __eram__;
 
 
 
-#if defined (_MALLOC_DEBUG)
+#if defined (MALLOC_DEBUG)
 int _SysmemCheck()
 {
     malblk_t *item;
@@ -482,9 +482,15 @@ void initialise()
     malloc_debug("__erom__ = %08x\n", &__eram__);
     malloc_debug("s_min_blk_size = %d\n", s_min_blk_size);
 
-    for (i=0; i<100; ++i)
+    int bkt_num = 0;
+    for (i=0; i<8192; ++i)
     {
-        malloc_debug("% 5d: % 5d % 5d\n", i, malblk_size(i), get_bkt_num(malblk_size(i)));
+        int new_bkt = get_bkt_num(malblk_size(i));
+        if (new_bkt != bkt_num)
+        {
+            malloc_debug("% 5d: % 5d % 5d\n", i, malblk_size(i), get_bkt_num(malblk_size(i)));
+            bkt_num = new_bkt;
+        }
     }
 
     // We need to align to 2 x sizeof(size_t)
@@ -530,7 +536,7 @@ void initialise()
 
     freelist_put(_Core);
 
-#if defined (_MALLOC_DEBUG)
+#if defined (MALLOC_DEBUG)
     _SysmemCheck();
 #endif
 
@@ -643,7 +649,7 @@ void *_Anvil_realloc(void *old_ptr, size_t new_size)
         freelist_put(old_blk);
     }
 
-#if defined (_MALLOC_DEBUG)
+#if defined (MALLOC_DEBUG)
     _SysmemCheck();
 #endif
 
