@@ -24,8 +24,9 @@
 #define BLK_PREV_IN_USE       (1<<0)
 #define BLK_BITMASK         (BLK_PREV_IN_USE)
 
-#define MALBLK_TO_PTR(__p) ((char *)__p + 2 * sizeof(size_t))
-#define PTR_TO_MALLOC_BLOCK(__p) ((malblk_t *)((char *)__p - 2 * sizeof(size_t)))
+//#define MALBLK_TO_PTR(__p) ((char *)__p + 2 * sizeof(size_t))
+//#define PTR_TO_MALLOC_BLOCK(__p) ((malblk_t *)((char *)__p - 2 * sizeof(size_t)))
+
 
 static const size_t s_min_blk_size = 2 * sizeof(size_t) + 2 * sizeof(void *);
 
@@ -85,13 +86,23 @@ static void blk_used_clr(malblk_t *pblk)
     next->size_this &= ~BLK_PREV_IN_USE;
 }
 
+static void *blk_to_ptr(malblk_t *blk)
+{
+    return ((char *)blk + 2 * sizeof(size_t));
+}
+
+static malblk_t *ptr_to_blk(void *p)
+{
+    return ((malblk_t *)((char *)p - 2 * sizeof(size_t)));
+}
+
 ////////////////////////////////////////////////
 /// Functions for navigating blocks
 ////////////////////////////////////////////////
 
-static malblk_t *blk_prev(malblk_t *pblk)
+static malblk_t *blk_prev_if_free(malblk_t *pblk)
 {
-    /* This function returns the previous block BUT ONLY IF THE BLOCK IS FREE */
+    // This function returns the previous block BUT ONLY IF THE BLOCK IS FREE
     if (pblk->size_this & BLK_PREV_IN_USE)
     {
         return NULL;
@@ -101,20 +112,14 @@ static malblk_t *blk_prev(malblk_t *pblk)
 
 static malblk_t *blk_next(malblk_t *pblk)
 {
-    /* We just need to look at the size_this of the next block. If it is
-     * zero we are at the end
-     */
-    malblk_t *pnext;
-
-    pnext = (malblk_t *)((char *)pblk + blk_size_get(pblk));
-
-    if (blk_size_get(pnext) == 0)
+    malblk_t *next = (malblk_t *)(((char *)pblk) + blk_size_get(pblk));
+    // We just need to look at the size_this of the next block. If it is
+    // zero we are at the end
+    if (blk_size_get(next) == 0)
     {
-        /* It's an end so ... */
         return NULL;
     }
-
-    return pnext;
+    return next;
 }
 
 ////////////////////////////////////////////////
@@ -123,8 +128,8 @@ static malblk_t *blk_next(malblk_t *pblk)
 
 #define MAX_BUCKETS (65)
 
-#define MALBLK_TO_BUCKET(__p) ((bucket_t *)(MALBLK_TO_PTR(__p)))
-#define BUCKET_TO_MALLOC_BLOCK(__p) PTR_TO_MALLOC_BLOCK(__p)
+//#define MALBLK_TO_BUCKET(__p) ((bucket_t *)(blk_to_ptr(__p)))
+//#define BUCKET_TO_MALLOC_BLOCK(__p) ptr_to_blk(__p)
 
 struct bucket
 {
@@ -148,14 +153,9 @@ static int get_bkt_num(size_t size)
     return (1 << 5) + (1 << 5); /* 64 */
 }
 
-static int bktlist_is_empty(bucket_t *list)
+static bucket_t *bktlist_get_head(bucket_t *list)
 {
-    return list == list->next;
-}
-
-static bucket_t *bktlist_peek_head(bucket_t *list)
-{
-    if (bktlist_is_empty(list))
+    if (list == list->next)
     {
         return NULL;
     }
@@ -168,14 +168,9 @@ static void bktlist_rem_item(bucket_t *item)
     item->prev->next = item->next;
 }
 
-static int bktlist_is_tail(bucket_t *list, bucket_t *item)
+static bucket_t *bktlist_get_next(bucket_t *list, bucket_t *item)
 {
-    return item->next == list;
-}
-
-static bucket_t *bktlist_peek_next(bucket_t *list, bucket_t *item)
-{
-    if (bktlist_is_tail(list, item))
+    if (item->next == list)
     {
         return NULL;
     }
@@ -205,18 +200,18 @@ static malblk_t *freelist_get(size_t size)
     for (b=bkt_num; b<MAX_BUCKETS; ++b)
     {
         pbkt = &Bucket[b];
-        item = bktlist_peek_head(pbkt);
+        item = bktlist_get_head(pbkt);
         while (item)
         {
             size_t  item_size;
-            item_size = blk_size_get((BUCKET_TO_MALLOC_BLOCK(item)));
+            item_size = blk_size_get((ptr_to_blk(item)));
             if (item_size > size)
             {
                 bktlist_rem_item(item);
                 malloc_debug("using freelist bkt %d\n", b);
-                return BUCKET_TO_MALLOC_BLOCK(item);
+                return ptr_to_blk(item);
             }
-            item = bktlist_peek_next(pbkt, item);
+            item = bktlist_get_next(pbkt, item);
         }
     }
 
@@ -237,13 +232,13 @@ static void freelist_put(malblk_t *blk)
 
     pbkt = &Bucket[bkt_num];
 
-    bktlist_add_head(pbkt, MALBLK_TO_BUCKET(blk));
+    bktlist_add_head(pbkt, blk_to_ptr(blk));
 }
 
 static void freelist_remove(malblk_t *blk)
 {
     bucket_t *bkt;
-    bkt = MALBLK_TO_BUCKET(blk);
+    bkt = blk_to_ptr(blk);
     bktlist_rem_item(bkt);
 }
 
@@ -292,7 +287,7 @@ static malblk_t *malblk_try_join_prev(malblk_t *blk)
 
     malloc_debug("%08x malblk_try_join_prev - ", blk);
 
-    prev = blk_prev(blk);
+    prev = blk_prev_if_free(blk);
     if (prev == NULL)
     {
         malloc_debug("prev in use\n");
@@ -409,7 +404,7 @@ static size_t malblk_size(size_t requested_size)
 
 
 #if defined (MALLOC_DEBUG)
-static int _SysmemCheck(void);
+static int heap_check(void);
 #endif
 
 static malblk_t *_Core;
@@ -420,7 +415,7 @@ extern char __eram__;
 
 
 #if defined (MALLOC_DEBUG)
-int _SysmemCheck()
+int heap_check()
 {
     malblk_t *item;
 
@@ -443,6 +438,7 @@ int _SysmemCheck()
 
         if (blk_size_get(item) == 0)
         {
+            malloc_debug(" %08lx %4d(%4x)   %s\n", item, size, size, flags?"*":"");
             break;
         }
 
@@ -537,7 +533,7 @@ void initialise()
     freelist_put(_Core);
 
 #if defined (MALLOC_DEBUG)
-    _SysmemCheck();
+    heap_check();
 #endif
 
 //    return _Core;
@@ -571,7 +567,7 @@ void *_Anvil_realloc(void *old_ptr, size_t new_size)
         {
             malblk_t *old_blk;
 
-            old_blk = PTR_TO_MALLOC_BLOCK(old_ptr);
+            old_blk = ptr_to_blk(old_ptr);
             old_size = blk_size_get(old_blk);
 
             if (new_size > old_size)
@@ -624,7 +620,7 @@ void *_Anvil_realloc(void *old_ptr, size_t new_size)
 
         blk_used_set(new_blk);
 
-        new_ptr = MALBLK_TO_PTR(new_blk);
+        new_ptr = blk_to_ptr(new_blk);
     }
 
     if (old_ptr)
@@ -639,7 +635,7 @@ void *_Anvil_realloc(void *old_ptr, size_t new_size)
 
         /* Are the adjacent blocks free ? */
         malblk_t *old_blk;
-        old_blk = PTR_TO_MALLOC_BLOCK(old_ptr);
+        old_blk = ptr_to_blk(old_ptr);
         old_blk = malblk_try_join_prev(old_blk);
         old_blk = malblk_try_join_next(old_blk, 0);
 
@@ -650,7 +646,7 @@ void *_Anvil_realloc(void *old_ptr, size_t new_size)
     }
 
 #if defined (MALLOC_DEBUG)
-    _SysmemCheck();
+    heap_check();
 #endif
 
     return new_ptr;
