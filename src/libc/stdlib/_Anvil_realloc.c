@@ -112,9 +112,9 @@ static malblk_t *blk_prev_if_free(malblk_t *pblk)
 
 static malblk_t *blk_next(malblk_t *pblk)
 {
-    malblk_t *next = (malblk_t *)(((char *)pblk) + blk_size_get(pblk));
     // We just need to look at the size_this of the next block. If it is
     // zero we are at the end
+    malblk_t *next = (malblk_t *)(((char *)pblk) + blk_size_get(pblk));
     if (blk_size_get(next) == 0)
     {
         return NULL;
@@ -127,9 +127,6 @@ static malblk_t *blk_next(malblk_t *pblk)
 ////////////////////////////////////////////////
 
 #define MAX_BUCKETS (65)
-
-//#define MALBLK_TO_BUCKET(__p) ((bucket_t *)(blk_to_ptr(__p)))
-//#define BUCKET_TO_MALLOC_BLOCK(__p) ptr_to_blk(__p)
 
 struct bucket
 {
@@ -248,8 +245,7 @@ static void freelist_remove(malblk_t *blk)
 
 static malblk_t *malblk_split(malblk_t *blk, size_t new_size)
 {
-    /* Split a block into 2 */
-
+    // Split a block into 2
     malblk_t *rem_blk;
     size_t rem_size;
     size_t curr_size;
@@ -478,16 +474,16 @@ void initialise()
     malloc_debug("__erom__ = %08x\n", &__eram__);
     malloc_debug("s_min_blk_size = %d\n", s_min_blk_size);
 
-    int bkt_num = 0;
-    for (i=0; i<8192; ++i)
-    {
-        int new_bkt = get_bkt_num(malblk_size(i));
-        if (new_bkt != bkt_num)
-        {
-            malloc_debug("% 5d: % 5d % 5d\n", i, malblk_size(i), get_bkt_num(malblk_size(i)));
-            bkt_num = new_bkt;
-        }
-    }
+//    int bkt_num = 0;
+//    for (i=0; i<8192; ++i)
+//    {
+//        int new_bkt = get_bkt_num(malblk_size(i));
+//        if (new_bkt != bkt_num)
+//        {
+//            malloc_debug("% 5d: % 5d % 5d\n", i, malblk_size(i), get_bkt_num(malblk_size(i)));
+//            bkt_num = new_bkt;
+//        }
+//    }
 
     // We need to align to 2 x sizeof(size_t)
     heap_start = &__ebss__;
@@ -539,10 +535,14 @@ void initialise()
 //    return _Core;
 }
 
-void *_Anvil_realloc(void *old_ptr, size_t new_size)
+void *_Anvil_realloc(void *old_ptr, size_t requested_size)
 {
     void *new_ptr = NULL;
     size_t old_size;
+    malblk_t *old_blk;
+
+    malloc_debug("---------------------------------\n", requested_size);
+    malloc_debug("realloc %x to %d bytes\n", old_ptr, requested_size);
 
     if (!initialised)
     {
@@ -550,14 +550,24 @@ void *_Anvil_realloc(void *old_ptr, size_t new_size)
         initialised = 1;
     }
 
-    malloc_debug("---------------------------------\n", new_size);
-    malloc_debug("realloc %x to %d bytes\n", old_ptr, new_size);
-
-    if (new_size)
+    if (old_ptr)
     {
-        malblk_t *new_blk = NULL;
+        old_blk = ptr_to_blk(old_ptr);
+        old_size = blk_size_get(old_blk);
+    }
+    else
+    {
+        old_blk = NULL;
+        old_size = 0;
+    }
 
-        if ((new_size = malblk_size(new_size)) == 0)
+    if (requested_size)
+    {
+        // malloc and realloc come through here
+        malblk_t *new_blk = NULL;
+        size_t new_size;
+
+        if ((new_size = malblk_size(requested_size)) == 0)
         {
             return NULL;
         }
@@ -565,34 +575,30 @@ void *_Anvil_realloc(void *old_ptr, size_t new_size)
 
         if (old_ptr)
         {
-            malblk_t *old_blk;
-
-            old_blk = ptr_to_blk(old_ptr);
-            old_size = blk_size_get(old_blk);
-
-            if (new_size > old_size)
+            // realloc to a new size
+            if (old_size < new_size)
             {
-                /* Try to extend to the new size */
+                // Try to extend to the new size
                 old_blk = malblk_try_join_next(old_blk, new_size - old_size);
                 old_size = blk_size_get(old_blk);
             }
 
-            if (new_size == old_size)
+            if (old_size == new_size)
             {
+                // The extend worked or it was already the right size
+                // Either way, we are done
                 malloc_debug("No need to grow size %d bytes\n", new_size);
                 return old_ptr;
             }
-
-            /* If we get here we either coulnn't extend the block or it's now
-             * too big
-             */
-            if (blk_size_get(old_blk) >= new_size)
+            else if (old_size >= new_size)
             {
+                // If the old block is now big enough it becomes our new block
                 new_blk = old_blk;
                 old_blk = NULL;
             }
         }
 
+        // If new_blk is still null we need to get one
         if (!new_blk)
         {
             /* Search for some memory in the free list */
@@ -603,10 +609,10 @@ void *_Anvil_realloc(void *old_ptr, size_t new_size)
             }
         }
 
-        /* It might have started too big or perhaps we over-extended */
+        // Now we definitely have a new block - do we need to trim it?
         if (blk_size_get(new_blk) > new_size)
         {
-            /* Trim the block */
+            // Trim the block
             malloc_debug("Trimming from %d to %d bytes\n", blk_size_get(new_blk), new_size);
             malblk_t *rem_blk;
             if ((rem_blk = malblk_split(new_blk, new_size)) != NULL)
@@ -618,8 +624,8 @@ void *_Anvil_realloc(void *old_ptr, size_t new_size)
             }
         }
 
+        // Now we have our new block and its the right size
         blk_used_set(new_blk);
-
         new_ptr = blk_to_ptr(new_blk);
     }
 
