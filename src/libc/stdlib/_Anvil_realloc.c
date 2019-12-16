@@ -245,7 +245,8 @@ static void freelist_remove(malblk_t *blk)
 
 static malblk_t *malblk_split(malblk_t *blk, size_t new_size)
 {
-    // Split a block into 2
+    // Split a block into 2. This function is used to split both free and
+    // used blocks
     malblk_t *rem_blk;
     size_t rem_size;
     size_t curr_size;
@@ -415,6 +416,9 @@ int heap_check()
 {
     malblk_t *item;
 
+    // Todo: Add checks for
+    // 1. that there are never 2 free blocks in succession
+
     /* Move to the first item */
     item = (malblk_t *)_Core;
 
@@ -443,7 +447,7 @@ int heap_check()
         {
             if ((item->size_this & ~0x7) != next_item->size_prev)
             {
-                malloc_debug("Bad 2nd size!!");
+                malloc_debug("Bad 2nd size %08x %08x!!\n", item->size_this, next_item->size_prev);
             }
         }
 
@@ -504,6 +508,7 @@ void initialise()
     Bucket = (bucket_t *)heap_start;
     heap_start = (char *)(Bucket + MAX_BUCKETS);
     malloc_debug("heap_start  = %08x\n", heap_start);
+    heap_len -= MAX_BUCKETS * sizeof(bucket_t);
 
     for (i=0; i<MAX_BUCKETS; ++i)
     {
@@ -526,6 +531,8 @@ void initialise()
     malloc_debug("getting system memory %08lx %d\n", _Core, _Core->size_this);
     malloc_debug("getting system memory %08lx %d\n", next, next->size_this);
 
+    malloc_debug("%08x %08x\n", _Core, ((char *)_Core) + _Core->size_this);
+
     freelist_put(_Core);
 
 #if defined (MALLOC_DEBUG)
@@ -535,11 +542,97 @@ void initialise()
 //    return _Core;
 }
 
+void *_Anvil_malloc(size_t size)
+{
+    malblk_t *rem_blk;
+    malblk_t *new_blk;
+    size_t new_size;
+
+    malloc_debug("---------------------------------\n", size);
+    malloc_debug("malloc %d bytes\n", size);
+
+    if (!initialised)
+    {
+        initialise();
+        initialised = 1;
+    }
+
+    /* The function will return 0 if an error occurs */
+    if ((new_size = malblk_size(size)) == 0)
+    {
+        return NULL;
+    }
+    malloc_debug("size %d bytes\n", new_size);
+
+    // Search for some memory in the free list
+    if ((new_blk = freelist_get(new_size)) == NULL)
+    {
+        // That's it, no more memory
+        return NULL;
+    }
+
+    malloc_debug("Found in freelist\n");
+
+    // Check whether it's too big and split it if it is
+    if ((rem_blk = malblk_split(new_blk, new_size)) != NULL)
+    {
+        // Free up the bit we don't need
+        freelist_put(rem_blk);
+        blk_used_clr(rem_blk);
+        malloc_debug("Put to freelist\n");
+    }
+
+    // Now we have our new block and its the right size
+    blk_used_set(new_blk);
+
+#if defined (MALLOC_DEBUG)
+    heap_check();
+#endif
+
+    return blk_to_ptr(new_blk);
+}
+
+void _Anvil_free(void *ptr)
+{
+    malblk_t *blk;
+
+    malloc_debug("---------------------------------\n");
+    malloc_debug("free %08lx\n", ptr);
+
+    /* If it's a NULL pointer don't do anything */
+    if (ptr == NULL)
+    {
+        return;
+    }
+
+    if (!initialised)
+    {
+        initialise();
+        initialised = 1;
+    }
+
+    blk = ptr_to_blk(ptr);
+
+    // Are the adjacent blocks free?
+    blk = malblk_try_join_prev(blk);
+    blk = malblk_try_join_next(blk, 0);
+
+    // Add the block to the bucket list for its size
+    blk_used_clr(blk);
+    freelist_put(blk);
+
+#if defined (MALLOC_DEBUG)
+    heap_check();
+#endif
+}
+
 void *_Anvil_realloc(void *old_ptr, size_t requested_size)
 {
     void *new_ptr = NULL;
     size_t old_size;
     malblk_t *old_blk;
+    malblk_t *next_blk;
+    size_t new_size;
 
     malloc_debug("---------------------------------\n", requested_size);
     malloc_debug("realloc %x to %d bytes\n", old_ptr, requested_size);
@@ -550,106 +643,84 @@ void *_Anvil_realloc(void *old_ptr, size_t requested_size)
         initialised = 1;
     }
 
-    if (old_ptr)
+    if (requested_size == 0)
     {
-        old_blk = ptr_to_blk(old_ptr);
+        // In the past it was assumed that if size were 0 then realloc would
+        // simply free p and return NULL.
+        // This is bad because a NULL return was supposed to indicate that the
+        // ptr was not freed. We do nothing and indicate that by returning NULL
+        return NULL;
+    }
+
+    if (!old_ptr)
+    {
+        // Just do a malloc
+        return _Anvil_malloc(requested_size);
+    }
+
+    if ((new_size = malblk_size(requested_size)) == 0)
+    {
+        return NULL;
+    }
+
+    malloc_debug("size %d bytes\n", new_size);
+
+    old_blk = ptr_to_blk(old_ptr);
+    old_size = blk_size_get(old_blk);
+
+    // realloc to a new size
+    if (new_size <= old_size)
+    {
+        // Trim to the new size if it's worth it. The split will fail if we are only
+        // trimming by a few bytes but that's okay
+        malloc_debug("Trimming from %d to %d bytes\n", blk_size_get(old_blk), new_size);
+        malblk_t *rem_blk;
+        if ((rem_blk = malblk_split(old_blk, new_size)) != NULL)
+        {
+            // If we were able to split some off, free it now
+            rem_blk = malblk_try_join_next(rem_blk, 0);
+            blk_used_clr(rem_blk);
+            freelist_put(rem_blk);
+        }
+        return old_ptr;
+    }
+
+    // If we are here new_size > old_size so try to extend the old block to the new size
+
+    // Check the next block
+    next_blk = blk_next(old_blk);
+
+    if (next_blk && blk_size(next_blk) >= new_size - old_size)
+    {
+        old_blk = malblk_try_join_next(old_blk, new_size - old_size);
         old_size = blk_size_get(old_blk);
-    }
-    else
-    {
-        old_blk = NULL;
-        old_size = 0;
-    }
 
-    if (requested_size)
-    {
-        // malloc and realloc come through here
-        malblk_t *new_blk = NULL;
-        size_t new_size;
-
-        if ((new_size = malblk_size(requested_size)) == 0)
-        {
-            return NULL;
-        }
-        malloc_debug("size %d bytes\n", new_size);
-
-        if (old_ptr)
-        {
-            // realloc to a new size
-            if (old_size < new_size)
-            {
-                // Try to extend to the new size
-                old_blk = malblk_try_join_next(old_blk, new_size - old_size);
-                old_size = blk_size_get(old_blk);
-            }
-
-            if (old_size == new_size)
-            {
-                // The extend worked or it was already the right size
-                // Either way, we are done
-                malloc_debug("No need to grow size %d bytes\n", new_size);
-                return old_ptr;
-            }
-            else if (old_size >= new_size)
-            {
-                // If the old block is now big enough it becomes our new block
-                new_blk = old_blk;
-                old_blk = NULL;
-            }
-        }
-
-        // If new_blk is still null we need to get one
-        if (!new_blk)
-        {
-            /* Search for some memory in the free list */
-            if ((new_blk = freelist_get(new_size)) == NULL)
-            {
-                /* That's it, no more memory */
-                return NULL;
-            }
-        }
-
-        // Now we definitely have a new block - do we need to trim it?
-        if (blk_size_get(new_blk) > new_size)
+        // Trim if necessary
+        if (blk_size_get(old_blk) >= new_size)
         {
             // Trim the block
-            malloc_debug("Trimming from %d to %d bytes\n", blk_size_get(new_blk), new_size);
+            malloc_debug("Trimming from %d to %d bytes\n", blk_size_get(old_blk), new_size);
             malblk_t *rem_blk;
-            if ((rem_blk = malblk_split(new_blk, new_size)) != NULL)
+            if ((rem_blk = malblk_split(old_blk, new_size)) != NULL)
             {
                 /* Free up the bit we don't need */
                 rem_blk = malblk_try_join_next(rem_blk, 0);
                 blk_used_clr(rem_blk);
                 freelist_put(rem_blk);
             }
+            return old_ptr;
         }
-
-        // Now we have our new block and its the right size
-        blk_used_set(new_blk);
-        new_ptr = blk_to_ptr(new_blk);
     }
 
-    if (old_ptr)
+    // If we get here it all failed so we need to do it the slow way
+    new_ptr = _Anvil_malloc(new_size);
+    if (!new_ptr)
     {
-        if (new_ptr)
-        {
-            // XXX: Todo: This should copy min(old, new)
-            // Actually we only get here if new > old because other wise we would have
-            // simply trimmed above
-            memcpy(new_ptr, old_ptr, old_size);
-        }
-
-        /* Are the adjacent blocks free ? */
-        malblk_t *old_blk;
-        old_blk = ptr_to_blk(old_ptr);
-        old_blk = malblk_try_join_prev(old_blk);
-        old_blk = malblk_try_join_next(old_blk, 0);
-
-        /* Add the block to the bucket list for its size */
-        blk_used_clr(old_blk);
-
-        freelist_put(old_blk);
+        return NULL;
     }
+
+    memcpy(new_ptr, old_ptr, old_size);
+    _Anvil_free(old_ptr);
 
 #if defined (MALLOC_DEBUG)
     heap_check();
