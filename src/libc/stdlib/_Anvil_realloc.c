@@ -681,7 +681,11 @@ void *_Anvil_realloc(void *old_ptr, size_t requested_size)
             rem_blk = malblk_try_join_next(rem_blk, 0);
             blk_used_clr(rem_blk);
             freelist_put(rem_blk);
+            blk_used_set(old_blk);
         }
+#if defined (MALLOC_DEBUG)
+        heap_check();
+#endif
         return old_ptr;
     }
 
@@ -690,9 +694,10 @@ void *_Anvil_realloc(void *old_ptr, size_t requested_size)
     // Check the next block
     next_blk = blk_next(old_blk);
 
-    if (next_blk && blk_size(next_blk) >= new_size - old_size)
+    if (next_blk && blk_size_get(next_blk) >= new_size - old_size)
     {
         old_blk = malblk_try_join_next(old_blk, new_size - old_size);
+        blk_used_set(old_blk);
         old_size = blk_size_get(old_blk);
 
         // Trim if necessary
@@ -707,7 +712,11 @@ void *_Anvil_realloc(void *old_ptr, size_t requested_size)
                 rem_blk = malblk_try_join_next(rem_blk, 0);
                 blk_used_clr(rem_blk);
                 freelist_put(rem_blk);
+                blk_used_set(old_blk);
             }
+#if defined (MALLOC_DEBUG)
+            heap_check();
+#endif
             return old_ptr;
         }
     }
