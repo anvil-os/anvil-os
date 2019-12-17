@@ -300,6 +300,41 @@ static malblk_t *malblk_try_join_next(malblk_t *blk, size_t extra_req)
     return blk;
 }
 
+static malblk_t *malblk_split(malblk_t *blk, size_t new_size)
+{
+    // Split a block and return the split off piece to the free list
+    malblk_t *rem_blk;
+    size_t rem_size;
+    size_t curr_size;
+
+    // Size of the block we are trimming
+    curr_size = blk_size_get(blk);
+
+    malloc_debug("Trimming %d bytes, new_size=%d\n", curr_size, new_size);
+
+    /* Check that the trim is possible. Both parts must end up > (2 size_t + 2 void *) */
+    if (new_size < s_min_blk_size || new_size + s_min_blk_size > curr_size)
+    {
+        malloc_debug("Trim not possible %u %u %u\n", curr_size, s_min_blk_size, new_size);
+        /* It's only just big enough so return NULL to indicate no split */
+        return NULL;
+    }
+
+    // We'll split off from the front of the blk. Firstly we figure out where
+    // the remaining block will start
+    rem_blk = (malblk_t *)((char *)blk + new_size);
+    rem_size = curr_size - new_size;
+    malloc_debug("rem_size=%d\n", rem_size);
+    blk_size_set(rem_blk, rem_size);
+    blk_size_set(blk, new_size);
+
+    // If we were able to split some off, free it now
+    blk_used_clr(rem_blk);
+    freelist_put(rem_blk);
+
+    return rem_blk;
+}
+
 static malblk_t *malblk_trim(malblk_t *blk, size_t new_size)
 {
     // Trim a block and return the trimmed off piece to the free list
@@ -408,25 +443,17 @@ static size_t malblk_size(size_t requested_size)
 }
 
 
-#if defined (MALLOC_DEBUG)
-static int heap_check(void);
-#endif
-
 static malblk_t *_Core;
 
 extern char __ebss__;
 extern char __eram__;
 
-
-
-#if defined (MALLOC_DEBUG)
 int heap_check()
 {
     malblk_t *item;
     int     item_is_free = -1;
 
     // Todo: Add checks for
-    // 1. that there are never 2 free blocks in succession
 
     /* Move to the first item */
     item = (malblk_t *)_Core;
@@ -455,6 +482,7 @@ int heap_check()
         {
             // This item and the previous are both free
             malloc_debug("CONSECUTIVE FREE ITEMS\n");
+            return -1;
         }
 
         // Check that the 2nd size is correct if the item is free
@@ -463,6 +491,7 @@ int heap_check()
             if ((item->size_this & ~0x7) != next_item->size_prev)
             {
                 malloc_debug("Bad 2nd size %08x %08x!!\n", item->size_this, next_item->size_prev);
+                return -1;
             }
             item_is_free = 1;
         }
@@ -481,7 +510,6 @@ int heap_check()
 
     return 0;
 }
-#endif
 
 static int initialised = 0;
 
@@ -489,7 +517,6 @@ void initialise()
 {
     char *heap_start;
     size_t heap_len;
-    size_t buckets_len;
     int i;
 
     // In this version of malloc we take all available memory and use it to create the heap
@@ -520,10 +547,6 @@ void initialise()
     // How much heap have we got?
     heap_len = &__eram__ - heap_start;
     malloc_debug("heap_len    = %08x\n", heap_len);
-
-    // Carve off some for our bucket list
-    buckets_len = MAX_BUCKETS * sizeof(bucket_t);
-    malloc_debug("buckets_len = %08x\n", buckets_len);
 
     Bucket = (bucket_t *)heap_start;
     heap_start = (char *)(Bucket + MAX_BUCKETS);
@@ -564,7 +587,6 @@ void initialise()
 
 void *malloc(size_t requested_size)
 {
-    malblk_t *rem_blk;
     malblk_t *new_blk;
     size_t new_size;
 
@@ -594,14 +616,7 @@ void *malloc(size_t requested_size)
     malloc_debug("Found in freelist\n");
 
     // Check whether it's too big and split it if it is
-    malblk_trim(new_blk, new_size);
-//    if ((rem_blk = malblk_split(new_blk, new_size)) != NULL)
-//    {
-//        // Free up the bit we don't need
-//        freelist_put(rem_blk);
-//        blk_used_clr(rem_blk);
-//        malloc_debug("Put to freelist\n");
-//    }
+    malblk_split(new_blk, new_size);
 
     // Now we have our new block and its the right size
     blk_used_set(new_blk);
