@@ -127,8 +127,8 @@ TEST(stdlib_malloc, realloc)
 
 int stdlib_malloc_test()
 {
-    //CALL_TEST(stdlib_malloc, malloc1);
-    //CALL_TEST(stdlib_malloc, malloc2);
+    CALL_TEST(stdlib_malloc, malloc1);
+    CALL_TEST(stdlib_malloc, malloc2);
     CALL_TEST(stdlib_malloc, realloc);
 
 
