@@ -348,6 +348,11 @@ static size_t malblk_size(size_t requested_size)
         return 0;
     }
 
+    if (requested_size == 0)
+    {
+        requested_size = 1;
+    }
+
     //
     // We need to add room for the block header. 2 * size_t to store the size
     // of the previous block and this one.

@@ -118,8 +118,8 @@ TEST(stdlib_malloc, realloc)
     //p2 = realloc(p1, 50);
 
 
-    //FREE(p1);
-    //FREE(p2);
+    FREE(p1);
+    FREE(p2);
 
     END_TEST(stdlib_malloc);
 }
