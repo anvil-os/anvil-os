@@ -22,6 +22,7 @@ TEST(stdlib_malloc, malloc1)
     for (int i=0; i<10; ++i)
     {
         p[i] = MALLOC(50);
+        ASSERT_NE(-1, heap_check());
     }
 
     FREE(p[3]);
@@ -34,6 +35,7 @@ TEST(stdlib_malloc, malloc1)
     FREE(p[4]);
     FREE(p[0]);
     FREE(p[5]);
+    ASSERT_NE(-1, heap_check());
 
     END_TEST(stdlib_malloc);
 }
@@ -47,6 +49,7 @@ TEST(stdlib_malloc, malloc2)
     for (int i=0; i<100; ++i)
     {
         char *ptr = MALLOC(50);
+        ASSERT_NE(-1, heap_check());
         if (ptr)
         {
             p[i] = ptr;
@@ -61,6 +64,7 @@ TEST(stdlib_malloc, malloc2)
     {
         if (p[i])
         {
+            ASSERT_NE(-1, heap_check());
             FREE(p[i]);
         }
     }
@@ -83,36 +87,49 @@ TEST(stdlib_malloc, realloc)
     ASSERT_EQ(128, sizeof_block(p1));
     p2 = MALLOC(124);
     ASSERT_EQ(128, sizeof_block(p2));
+    ASSERT_NE(-1, heap_check());
 
     // Reducing by 1 byte should do nothing
     p3 = REALLOC(p1, 123);
     ASSERT_EQ(128, sizeof_block(p3));
     ASSERT_PTR_EQ(p3, p1);
+    ASSERT_NE(-1, heap_check());
 
     // Reducing by 15 bytes should still do nothing
     p3 = REALLOC(p1, 109);
     ASSERT_EQ(128, sizeof_block(p3));
     ASSERT_PTR_EQ(p3, p1);
+    ASSERT_NE(-1, heap_check());
 
     // Reducing by 16 bytes - a full block will be cut off
     p3 = REALLOC(p1, 108);
     ASSERT_EQ(112, sizeof_block(p3));
     ASSERT_PTR_EQ(p3, p1);
+    ASSERT_NE(-1, heap_check());
+
+    // Reducing by another 16 bytes - a second block will merge with the other
+    p3 = REALLOC(p1, 92);
+    ASSERT_EQ(96, sizeof_block(p3));
+    ASSERT_PTR_EQ(p3, p1);
+    ASSERT_NE(-1, heap_check());
 
     // Increase by a byte and it should extend again
     p3 = REALLOC(p1, 109);
     ASSERT_EQ(128, sizeof_block(p3));
     ASSERT_PTR_EQ(p3, p1);
+    ASSERT_NE(-1, heap_check());
 
     // This time reduce by 1.5 blocks
     p3 = REALLOC(p1, 100);
     ASSERT_EQ(104, sizeof_block(p3));
     ASSERT_PTR_EQ(p3, p1);
+    ASSERT_NE(-1, heap_check());
 
     // Increase by a byte and it should extend by 8 bytes
     p3 = REALLOC(p1, 101);
     ASSERT_EQ(112, sizeof_block(p3));
     ASSERT_PTR_EQ(p3, p1);
+    ASSERT_NE(-1, heap_check());
 
     //
     //p2 = realloc(p1, 50);
