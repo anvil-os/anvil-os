@@ -243,41 +243,6 @@ static void freelist_remove(malblk_t *blk)
 /// Functions for trimming and joining blocks
 ////////////////////////////////////////////////
 
-static malblk_t *malblk_trim(malblk_t *blk, size_t new_size)
-{
-    // Trim a block and return the trimmed off piece to the free list
-    malblk_t *rem_blk;
-    size_t rem_size;
-    size_t curr_size;
-
-    // Size of the block we are trimming
-    curr_size = blk_size_get(blk);
-
-    malloc_debug("Trimming %d bytes, new_size=%d\n", curr_size, new_size);
-
-    /* Check that the trim is possible. Both parts must end up > (2 size_t + 2 void *) */
-    if (new_size < s_min_blk_size || new_size + s_min_blk_size > curr_size)
-    {
-        malloc_debug("Trim not possible %u %u %u\n", curr_size, s_min_blk_size, new_size);
-        /* It's only just big enough so return NULL to indicate no split */
-        return NULL;
-    }
-
-    // We'll split off from the front of the blk. Firstly we figure out where
-    // the remaining block will start
-    rem_blk = (malblk_t *)((char *)blk + new_size);
-    rem_size = curr_size - new_size;
-    malloc_debug("rem_size=%d\n", rem_size);
-    blk_size_set(rem_blk, rem_size);
-    blk_size_set(blk, new_size);
-
-    // If we were able to split some off, free it now
-    blk_used_clr(rem_blk);
-    freelist_put(rem_blk);
-
-    return rem_blk;
-}
-
 static malblk_t *malblk_try_join_prev(malblk_t *blk)
 {
     /* Join blk with the prev block but only if the prev block is not busy */
@@ -333,6 +298,42 @@ static malblk_t *malblk_try_join_next(malblk_t *blk, size_t extra_req)
     malloc_debug("got %d\n", total);
 
     return blk;
+}
+
+static malblk_t *malblk_trim(malblk_t *blk, size_t new_size)
+{
+    // Trim a block and return the trimmed off piece to the free list
+    malblk_t *rem_blk;
+    size_t rem_size;
+    size_t curr_size;
+
+    // Size of the block we are trimming
+    curr_size = blk_size_get(blk);
+
+    malloc_debug("Trimming %d bytes, new_size=%d\n", curr_size, new_size);
+
+    /* Check that the trim is possible. Both parts must end up > (2 size_t + 2 void *) */
+    if (new_size < s_min_blk_size || new_size + s_min_blk_size > curr_size)
+    {
+        malloc_debug("Trim not possible %u %u %u\n", curr_size, s_min_blk_size, new_size);
+        /* It's only just big enough so return NULL to indicate no split */
+        return NULL;
+    }
+
+    // We'll split off from the front of the blk. Firstly we figure out where
+    // the remaining block will start
+    rem_blk = (malblk_t *)((char *)blk + new_size);
+    rem_size = curr_size - new_size;
+    malloc_debug("rem_size=%d\n", rem_size);
+    blk_size_set(rem_blk, rem_size);
+    blk_size_set(blk, new_size);
+
+    // If we were able to split some off, free it now
+    rem_blk = malblk_try_join_next(rem_blk, 0);
+    blk_used_clr(rem_blk);
+    freelist_put(rem_blk);
+
+    return rem_blk;
 }
 
 ////////////////////////////////////////////////
@@ -422,6 +423,7 @@ extern char __eram__;
 int heap_check()
 {
     malblk_t *item;
+    int     item_is_free = -1;
 
     // Todo: Add checks for
     // 1. that there are never 2 free blocks in succession
@@ -449,6 +451,12 @@ int heap_check()
             break;
         }
 
+        if (item_is_free != -1 && !flags && item_is_free)
+        {
+            // This item and the previous are both free
+            malloc_debug("CONSECUTIVE FREE ITEMS\n");
+        }
+
         // Check that the 2nd size is correct if the item is free
         if (!flags)
         {
@@ -456,6 +464,11 @@ int heap_check()
             {
                 malloc_debug("Bad 2nd size %08x %08x!!\n", item->size_this, next_item->size_prev);
             }
+            item_is_free = 1;
+        }
+        else
+        {
+            item_is_free = 0;
         }
 
         // Print info for item
