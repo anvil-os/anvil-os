@@ -240,76 +240,6 @@ static void freelist_remove(malblk_t *blk)
 }
 
 ////////////////////////////////////////////////
-/// Functions for trimming and joining blocks
-////////////////////////////////////////////////
-
-static malblk_t *malblk_try_join_next(malblk_t *blk, size_t extra_req)
-{
-    /* Join blk with the next block but only if the next block is not busy */
-    malblk_t *next;
-    size_t total;
-
-    malloc_debug("malblk_try_join_next - ");
-
-    next = blk_next(blk);
-
-    if (!next || (blk_size_get(next) < extra_req) || blk_used_get(next))
-    {
-        malloc_debug("fail\n");
-        return blk;
-    }
-
-    malloc_debug("used=%d\n", blk_used_get(next));
-
-    /* Take the next from the free list */
-    freelist_remove(next);
-
-    /* Now join them */
-    total = blk_size_get(blk) + blk_size_get(next);
-    malloc_debug("done, join %d %d ", blk_size_get(blk), blk_size_get(next));
-    blk_size_set(blk, total);
-    malloc_debug("got %d\n", total);
-
-    return blk;
-}
-
-static malblk_t *malblk_trim(malblk_t *blk, size_t new_size)
-{
-    // Trim a block and return the trimmed off piece to the free list
-    malblk_t *rem_blk;
-    size_t rem_size;
-    size_t curr_size;
-
-    // Size of the block we are trimming
-    curr_size = blk_size_get(blk);
-
-    malloc_debug("Trimming %d bytes, new_size=%d\n", curr_size, new_size);
-
-    /* Check that the trim is possible. Both parts must end up > (2 size_t + 2 void *) */
-    if (new_size < s_min_blk_size || new_size + s_min_blk_size > curr_size)
-    {
-        malloc_debug("Trim not possible %u %u %u\n", curr_size, s_min_blk_size, new_size);
-        /* It's only just big enough so return NULL to indicate no split */
-        return NULL;
-    }
-
-    // We'll split off from the front of the blk. Firstly we figure out where
-    // the remaining block will start
-    rem_blk = (malblk_t *)((char *)blk + new_size);
-    rem_size = curr_size - new_size;
-    malloc_debug("rem_size=%d\n", rem_size);
-    blk_size_set(rem_blk, rem_size);
-    blk_size_set(blk, new_size);
-
-    // If we were able to split some off, free it now
-    rem_blk = malblk_try_join_next(rem_blk, 0);
-    blk_used_clr(rem_blk);
-    freelist_put(rem_blk);
-
-    return rem_blk;
-}
-
-////////////////////////////////////////////////
 /// Convert requested bytes to block size
 ////////////////////////////////////////////////
 
@@ -600,8 +530,7 @@ void free(void *ptr)
         // Take the prev from the free list
         freelist_remove(adj);
         // Now join them
-        size_t total = blk_size_get(adj) + blk_size_get(blk);
-        blk_size_set(adj, total);
+        blk_size_set(adj, blk_size_get(adj) + blk_size_get(blk));
         blk = adj;
     }
 
@@ -612,8 +541,7 @@ void free(void *ptr)
         // Take the next from the free list
         freelist_remove(adj);
         // Now join them
-        size_t total = blk_size_get(blk) + blk_size_get(adj);
-        blk_size_set(blk, total);
+        blk_size_set(blk, blk_size_get(blk) + blk_size_get(adj));
     }
 
     // Add the block to the bucket list for its size
@@ -628,9 +556,10 @@ void free(void *ptr)
 void *realloc(void *old_ptr, size_t requested_size)
 {
     void *new_ptr = NULL;
-    size_t old_size;
-    malblk_t *old_blk;
-    size_t new_size;
+    size_t orig_size;
+    malblk_t *orig_blk;
+    size_t req_blk_size;
+    malblk_t *next_blk;
 
     malloc_debug("---------------------------------\n", requested_size);
     malloc_debug("realloc %x to %d bytes\n", old_ptr, requested_size);
@@ -641,76 +570,52 @@ void *realloc(void *old_ptr, size_t requested_size)
         return malloc(requested_size);
     }
 
-    if ((new_size = malblk_size(requested_size)) == 0)
+    if ((req_blk_size = malblk_size(requested_size)) == 0)
     {
         return NULL;
     }
 
-    malloc_debug("size %d bytes\n", new_size);
+    malloc_debug("size %d bytes\n", req_blk_size);
 
-    old_blk = ptr_to_blk(old_ptr);
-    old_size = blk_size_get(old_blk);
+    orig_blk = ptr_to_blk(old_ptr);
+    orig_size = blk_size_get(orig_blk);
+    next_blk = blk_next(orig_blk);
 
-    // realloc to a new size
-    if (new_size <= old_size)
+    // Join the original block with the next block if the next block is free and either
+    //  a) the original block is too big and we are going to free some and
+    //     coalesce it with the next block later anyway
+    //  b) the original block is too small and joining will make it big enough
+    if (next_blk && !blk_used_get(next_blk) &&
+         ((orig_size > req_blk_size) || ((req_blk_size > orig_size) && (blk_size_get(next_blk) >= req_blk_size - orig_size)))
+       )
     {
-        // Trim to the new size if it's worth it. The split will fail if we are only
-        // trimming by a few bytes but that's okay
-        malloc_debug("Trimming1 from %d to %d bytes\n", blk_size_get(old_blk), new_size);
+		// Take the next from the free list
+		freelist_remove(next_blk);
+		// Now join them
+		blk_size_set(orig_blk, orig_size + blk_size_get(next_blk));
+        blk_used_set(orig_blk);
+	}
 
-//        rem_size = blk_size_get(new_blk) - req_blk_size;
-//        if (rem_size >= s_min_blk_size)
-
-//        malblk_trim(old_blk, new_size);
+    // Is it big enough now?
+    if (blk_size_get(orig_blk) >= req_blk_size)
+    {
+        // The only ways that orig_blk is now bigger than the request are
+        // a) it was already bigger in which case we would have coalesced above
+        // b) it became bigger because we coalesced above
+        // In either case the next block if there is one will never be free
+    	// Todo: Assert that here
+    	size_t rem_size = blk_size_get(orig_blk) - req_blk_size;
+        if (rem_size >= s_min_blk_size)
         {
-            // Trim a block and return the trimmed off piece to the free list
-            malblk_t *rem_blk;
-            size_t rem_size;
-//            size_t curr_size;
-
-            // Size of the block we are trimming
-//            curr_size = blk_size_get(old_blk);
-
-            malloc_debug("Trimming %d bytes, new_size=%d\n", old_size, new_size);
-
-            /* Check that the trim is possible. Both parts must end up > (2 size_t + 2 void *) */
-            if (new_size >= s_min_blk_size && new_size + s_min_blk_size <= old_size)
-            {
-                // We'll split off from the front of the blk. Firstly we figure out where
-                // the remaining block will start
-                rem_blk = (malblk_t *)((char *)old_blk + new_size);
-                rem_size = old_size - new_size;
-                malloc_debug("rem_size=%d\n", rem_size);
-                blk_size_set(rem_blk, rem_size);
-                blk_size_set(old_blk, new_size);
-
-                // If we were able to split some off, free it now
-                rem_blk = malblk_try_join_next(rem_blk, 0);
-                blk_used_clr(rem_blk);
-                freelist_put(rem_blk);
-            }
-
-
-            //return rem_blk;
+        	// Split the block and return the split off piece to the free list
+        	malblk_t *rem_blk = (malblk_t *)((char *)orig_blk + req_blk_size);
+        	blk_size_set(rem_blk, rem_size);
+        	blk_size_set(orig_blk, req_blk_size);
+        	// If we were able to split some off, free it now
+        	blk_used_clr(rem_blk);
+        	freelist_put(rem_blk);
+            blk_used_set(orig_blk);
         }
-
-        blk_used_set(old_blk);
-#if defined (MALLOC_DEBUG)
-        heap_check();
-#endif
-        return old_ptr;
-    }
-
-    // Okay so the block isn't big enough
-    old_blk = malblk_try_join_next(old_blk, new_size - old_size);
-
-    // Trim if necessary
-    if (blk_size_get(old_blk) >= new_size)
-    {
-        // Trim the block
-        malloc_debug("Trimming2 from %d to %d bytes\n", blk_size_get(old_blk), new_size);
-        malblk_trim(old_blk, new_size);
-        blk_used_set(old_blk);
 #if defined (MALLOC_DEBUG)
         heap_check();
 #endif
@@ -718,13 +623,13 @@ void *realloc(void *old_ptr, size_t requested_size)
     }
 
     // If we get here it all failed so we need to do it the slow way
-    new_ptr = malloc(new_size);
+    new_ptr = malloc(requested_size);
     if (!new_ptr)
-    {
+     {
         return NULL;
     }
 
-    memcpy(new_ptr, old_ptr, old_size);
+    memcpy(new_ptr, old_ptr, orig_size);
     free(old_ptr);
 
 #if defined (MALLOC_DEBUG)
