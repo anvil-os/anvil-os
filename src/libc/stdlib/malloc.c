@@ -20,13 +20,9 @@
 #define MALLOC_ALIGN_LOG    (4)
 #endif
 
-/* These are stored in the low bits of size_this - room for 3 (or 4) */
+// These are stored in the low bits of size_this - room for 3 (or 4)
 #define BLK_PREV_IN_USE       (1<<0)
 #define BLK_BITMASK         (BLK_PREV_IN_USE)
-
-//#define MALBLK_TO_PTR(__p) ((char *)__p + 2 * sizeof(size_t))
-//#define PTR_TO_MALLOC_BLOCK(__p) ((malblk_t *)((char *)__p - 2 * sizeof(size_t)))
-
 
 static const size_t s_min_blk_size = 2 * sizeof(size_t) + 2 * sizeof(void *);
 
@@ -47,6 +43,26 @@ struct malblk
     struct malblk *next;
 };
 typedef struct malblk malblk_t;
+
+#define MAX_BUCKETS (65)
+
+struct bucket
+{
+    struct bucket *prev;
+    struct bucket *next;
+};
+typedef struct bucket bucket_t;
+
+// The malloc context
+struct mal_context
+{
+    bucket_t *bucket;
+    malblk_t *first_blk;
+    size_t free;
+    size_t used_blocks;
+};
+
+struct mal_context mal_ctx;
 
 ////////////////////////////////////////////////
 /// Access functions for malblk_t
@@ -126,17 +142,6 @@ static malblk_t *blk_next(malblk_t *pblk)
 /// Functions for managing the free lists
 ////////////////////////////////////////////////
 
-#define MAX_BUCKETS (65)
-
-struct bucket
-{
-    struct bucket *prev;
-    struct bucket *next;
-};
-typedef struct bucket bucket_t;
-
-bucket_t *Bucket;
-
 static int get_bkt_num(size_t size)
 {
     if (size <= (1 << (MALLOC_ALIGN_LOG + 5))) /* <= 256 */
@@ -196,7 +201,7 @@ static malblk_t *freelist_get(size_t size)
 
     for (b=bkt_num; b<MAX_BUCKETS; ++b)
     {
-        pbkt = &Bucket[b];
+        pbkt = &mal_ctx.bucket[b];
         item = bktlist_get_head(pbkt);
         while (item)
         {
@@ -227,7 +232,7 @@ static void freelist_put(malblk_t *blk)
 
     malloc_debug("adding %d bytes to freelist bkt %d\n", size, bkt_num);
 
-    pbkt = &Bucket[bkt_num];
+    pbkt = &mal_ctx.bucket[bkt_num];
 
     bktlist_add_head(pbkt, blk_to_ptr(blk));
 }
@@ -310,21 +315,20 @@ static size_t malblk_size(size_t requested_size)
     return block_size;
 }
 
-
-static malblk_t *_Core;
-
 extern char __ebss__;
 extern char __eram__;
 
 int heap_check()
 {
     malblk_t *item;
-    int     item_is_free = -1;
+    int item_is_free = -1;
+    size_t total_free = 0;
+    size_t total_used = 0;
 
     // Todo: Add checks for
 
     /* Move to the first item */
-    item = (malblk_t *)_Core;
+    item = (malblk_t *)mal_ctx.first_blk;
 
     malloc_debug("=========================\n");
 
@@ -344,6 +348,15 @@ int heap_check()
         {
             malloc_debug(" %08lx %4d(%4x)   %s\n", item, size, size, flags?"*":"");
             break;
+        }
+
+        if (flags & 0x1)
+        {
+            total_used += size;
+        }
+        else
+        {
+            total_free += size;
         }
 
         if (item_is_free != -1 && !flags && item_is_free)
@@ -374,6 +387,13 @@ int heap_check()
         item = next_item;
     }
 
+    malloc_debug("Free %u %u\n", total_free, mal_ctx.free);
+    malloc_debug("Used %u\n", total_used);
+    if (total_free != mal_ctx.free)
+    {
+        malloc_debug("WRONG FREE AMOUNT\n");
+        return -1;
+    }
     malloc_debug("=========================\n");
 
     return 0;
@@ -416,41 +436,40 @@ void initialise()
     heap_len = &__eram__ - heap_start;
     malloc_debug("heap_len    = %08x\n", heap_len);
 
-    Bucket = (bucket_t *)heap_start;
-    heap_start = (char *)(Bucket + MAX_BUCKETS);
+    mal_ctx.bucket = (bucket_t *)heap_start;
+    heap_start = (char *)(mal_ctx.bucket + MAX_BUCKETS);
     malloc_debug("heap_start  = %08x\n", heap_start);
     heap_len -= MAX_BUCKETS * sizeof(bucket_t);
 
     for (i=0; i<MAX_BUCKETS; ++i)
     {
-        Bucket[i].prev = Bucket[i].next = &Bucket[i];
+        mal_ctx.bucket[i].prev = mal_ctx.bucket[i].next = &mal_ctx.bucket[i];
     }
 
-    _Core = (malblk_t *)heap_start;
+    mal_ctx.first_blk = (malblk_t *)heap_start;
     heap_len -= 1024;
 
-    memset(_Core, 0, heap_len);
+    memset(mal_ctx.first_blk, 0, heap_len);
 
-    blk_size_and_flags_set(_Core, heap_len | BLK_PREV_IN_USE);
+    blk_size_and_flags_set(mal_ctx.first_blk, heap_len | BLK_PREV_IN_USE);
 
     // XXX: Todo: Souldn't heap_len be reduced enough to fit the header of the next block??
-    malblk_t *next = (malblk_t *)(((char *)_Core) + heap_len);
+    malblk_t *next = (malblk_t *)(((char *)mal_ctx.first_blk) + heap_len);
     next->size_prev = heap_len;
     next->size_this = 0;
 
     /* Make this into a free block */
-    malloc_debug("getting system memory %08lx %d\n", _Core, _Core->size_this);
+    malloc_debug("getting system memory %08lx %d\n", mal_ctx.first_blk, mal_ctx.first_blk->size_this);
     malloc_debug("getting system memory %08lx %d\n", next, next->size_this);
 
-    malloc_debug("%08x %08x\n", _Core, ((char *)_Core) + _Core->size_this);
+    malloc_debug("%08x %08x\n", mal_ctx.first_blk, ((char *)mal_ctx.first_blk) + mal_ctx.first_blk->size_this);
 
-    freelist_put(_Core);
+    freelist_put(mal_ctx.first_blk);
+    mal_ctx.free = heap_len;
 
 #if defined (MALLOC_DEBUG)
     heap_check();
 #endif
-
-//    return _Core;
 }
 
 void *malloc(size_t requested_size)
@@ -500,6 +519,8 @@ void *malloc(size_t requested_size)
     // Now we have our new block and its the right size
     blk_used_set(new_blk);
 
+    mal_ctx.free -= blk_size_get(new_blk);
+
 #if defined (MALLOC_DEBUG)
     heap_check();
 #endif
@@ -522,6 +543,8 @@ void free(void *ptr)
     }
 
     blk = ptr_to_blk(ptr);
+
+    mal_ctx.free += blk_size_get(blk);
 
     // Join with the prev block but only if the prev block is not busy
     adj = blk_prev_if_free(blk);
@@ -591,6 +614,7 @@ void *realloc(void *old_ptr, size_t requested_size)
     {
 		// Take the next from the free list
 		freelist_remove(next_blk);
+	    mal_ctx.free -= blk_size_get(next_blk);
 		// Now join them
 		blk_size_set(orig_blk, orig_size + blk_size_get(next_blk));
         blk_used_set(orig_blk);
@@ -613,6 +637,7 @@ void *realloc(void *old_ptr, size_t requested_size)
         	blk_size_set(orig_blk, req_blk_size);
         	// If we were able to split some off, free it now
         	blk_used_clr(rem_blk);
+            mal_ctx.free += blk_size_get(rem_blk);
         	freelist_put(rem_blk);
             blk_used_set(orig_blk);
         }
@@ -625,7 +650,7 @@ void *realloc(void *old_ptr, size_t requested_size)
     // If we get here it all failed so we need to do it the slow way
     new_ptr = malloc(requested_size);
     if (!new_ptr)
-     {
+    {
         return NULL;
     }
 

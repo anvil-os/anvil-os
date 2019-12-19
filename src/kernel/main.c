@@ -34,6 +34,8 @@ int main()
 
     libc_test();
 
+    while (1);
+
     sys_tick_init();
 
     thrd_create(&thr, thread2, (void *)0x12345678);

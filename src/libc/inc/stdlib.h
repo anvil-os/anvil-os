@@ -24,4 +24,7 @@ void abort(void);
 int atexit(void (*func)(void));
 char *getenv(const char *name);
 
+int rand(void);
+void srand(unsigned int __seed);
+
 #endif /* _STDLIB_H_INCLUDED */

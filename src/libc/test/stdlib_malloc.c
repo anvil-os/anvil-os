@@ -64,8 +64,8 @@ TEST(stdlib_malloc, malloc2)
     {
         if (p[i])
         {
-            ASSERT_NE(-1, heap_check());
             FREE(p[i]);
+            ASSERT_NE(-1, heap_check());
         }
     }
 
@@ -131,12 +131,52 @@ TEST(stdlib_malloc, realloc)
     ASSERT_PTR_EQ(p3, p1);
     ASSERT_NE(-1, heap_check());
 
-    //
-    //p2 = realloc(p1, 50);
-
-
     FREE(p1);
     FREE(p2);
+
+    END_TEST(stdlib_malloc);
+}
+
+TEST(stdlib_malloc, stress)
+{
+    void *(* volatile MALLOC)(size_t size) = malloc;
+    void (* volatile FREE)(void *ptr) = free;
+
+    char *p[100];
+
+    for (int i=0; i<100; ++i)
+    {
+        p[i] = NULL;
+    }
+
+    for (int i=0; i<100; ++i)
+    {
+        // Pick a random number from 0 to 7
+        int rand_num = rand() * 10 / 32767;
+        int malloc_size = 1 << rand_num;
+        // Add a bit more to it
+        rand_num = rand() * malloc_size / 32767;
+        malloc_size += rand_num;
+        char *ptr = MALLOC(malloc_size);
+        //ASSERT_NE(-1, heap_check());
+        if (ptr)
+        {
+            p[i] = ptr;
+        }
+        else
+        {
+            p[i] = NULL;
+        }
+    }
+
+    for (int i=0; i<100; ++i)
+    {
+        if (p[i])
+        {
+            FREE(p[i]);
+            //ASSERT_NE(-1, heap_check());
+        }
+    }
 
     END_TEST(stdlib_malloc);
 }
@@ -147,6 +187,7 @@ int stdlib_malloc_test()
     CALL_TEST(stdlib_malloc, malloc1);
     CALL_TEST(stdlib_malloc, malloc2);
     CALL_TEST(stdlib_malloc, realloc);
+    CALL_TEST(stdlib_malloc, stress);
 
 
     END_TEST_GROUP(stdlib_malloc);
