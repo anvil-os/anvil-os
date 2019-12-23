@@ -29,7 +29,8 @@
 
 typedef struct
 {
-    int fd;
+    int __fd;
+    int __status;
 } FILE;
 
 typedef struct
