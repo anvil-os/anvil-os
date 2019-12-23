@@ -27,20 +27,19 @@
 
 #define TMP_MAX         10000
 
-typedef struct
-{
-    int __fd;
-    int __status;
-} FILE;
+#if !defined (_Anvil_got_FILE)
+typedef _Anvil_FILE FILE;
+#define _Anvil_got_FILE
+#endif
 
 typedef struct
 {
     _Anvil_off_t __pos;
 } fpos_t;
 
-FILE *stderr;
-FILE *stdin;
-FILE *stdout;
+extern FILE *stdin;
+extern FILE *stdout;
+extern FILE *stderr;
 
 int remove(const char *__filename);
 int rename(const char *__old, const char *__new);

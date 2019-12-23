@@ -95,6 +95,13 @@ struct                      \
     int __b;                \
 }
 
+#define _Anvil_FILE         \
+struct                      \
+{                           \
+    int __fd;               \
+    int __status;           \
+}
+
 long long _Anvil_strtoll(const char *restrict __str,
                     char **restrict __endptr,
                     int __base, long long __min,

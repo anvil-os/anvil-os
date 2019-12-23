@@ -3,5 +3,5 @@
 
 int getc(FILE *stream)
 {
-    return -1;
+    return fgetc(stream);
 }

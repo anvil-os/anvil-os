@@ -3,5 +3,5 @@
 
 int putc(int c, FILE *stream)
 {
-    return -1;
+    return fputc(c, stream);
 }

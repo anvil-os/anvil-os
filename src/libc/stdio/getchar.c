@@ -3,5 +3,5 @@
 
 int getchar(void)
 {
-    return -1;
+    return fgetc(stdin);
 }
