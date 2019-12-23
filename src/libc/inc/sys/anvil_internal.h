@@ -83,19 +83,22 @@
 #define _ANVIL_CTYPE_RANGE_FIX(__c) do { c = (c == -1 ? 0 : (unsigned char)c + 1); } while (0);
 //#define _ANVIL_CTYPE_RANGE_FIX(__c) do { ++c; } while (0);
 
-long long _Anvil_strtoll(const char *restrict __str,
-                    char **restrict __endptr,
-                    int __base, long long __min,
-                    unsigned long long __max);
-
-void *_Anvil_malloc(__SIZE_TYPE__ __size);
-void _Anvil_free(void *__ptr);
-void *_Anvil_realloc(void *__ptr, __SIZE_TYPE__ __size);
-
 #define _Anvil_va_list  __builtin_va_list
 #define _Anvil_int64_t  __INT64_TYPE__
 
 #define _Anvil_off_t    __INT64_TYPE__
+
+#define _Anvil_mbstate_t    \
+struct                      \
+{                           \
+    int __a;                \
+    int __b;                \
+}
+
+long long _Anvil_strtoll(const char *restrict __str,
+                    char **restrict __endptr,
+                    int __base, long long __min,
+                    unsigned long long __max);
 
 int _Anvil_printf(const char *__fmt, _Anvil_va_list __ap, int (*__nputs)(void *, const char *, int), void *__arg);
 

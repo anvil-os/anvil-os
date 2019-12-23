@@ -8,6 +8,6 @@ MODULE_CFLAGS :=					\
 
 LIBRARY := libc.a
 MODULE_CFLAGS += -static
-DIRS := string ctype stdlib errno stdio threads time anvil test
+DIRS := string ctype stdlib errno stdio threads time anvil test uchar
 
 include $(PROJECT_ROOT)/make/default.mk
