@@ -57,6 +57,7 @@
 #define __UINT_FAST64_TYPE__    long long unsigned int
 
 #define restrict
+#define _Noreturn
 
 #define __gnuc_va_list unsigned char *
 
@@ -100,6 +101,9 @@ struct                      \
 {                           \
     int __fd;               \
     int __status;           \
+    char *__buf;            \
+    char *__bufend;         \
+    char *__wptr;           \
 }
 
 long long _Anvil_strtoll(const char *restrict __str,
