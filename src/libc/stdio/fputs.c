@@ -1,7 +1,19 @@
 
-#include <stdio.h>
+#include "_Anvil_stdio.h"
 
 int fputs(const char *restrict s, FILE *restrict stream)
 {
-    return -1;
+    int ret = 0;
+    _Anvil_flockfile(stream);
+    while (*s)
+    {
+        if (_Putc_unlocked(*s, stream) == EOF)
+        {
+            ret = EOF;
+            break;
+        }
+        ++s;
+    }
+    _Anvil_funlockfile(stream);
+    return ret;
 }
