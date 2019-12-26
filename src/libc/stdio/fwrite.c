@@ -22,7 +22,7 @@ size_t fwrite(const void *restrict ptr, size_t size, size_t nmemb, FILE *restric
     _Anvil_flockfile(stream);
     while (bytes)
     {
-        if (_Putc_unlocked(*p, stream) == EOF)
+        if (_Anvil_fputc_unlocked(*p, stream) == EOF)
         {
             break;
         }

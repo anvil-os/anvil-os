@@ -7,7 +7,7 @@ int fputs(const char *restrict s, FILE *restrict stream)
     _Anvil_flockfile(stream);
     while (*s)
     {
-        if (_Putc_unlocked(*s, stream) == EOF)
+        if (_Anvil_fputc_unlocked(*s, stream) == EOF)
         {
             ret = EOF;
             break;

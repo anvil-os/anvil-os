@@ -104,6 +104,7 @@ struct                      \
     char *__buf;            \
     char *__bufend;         \
     char *__wptr;           \
+    char __minibuf;         \
 }
 
 long long _Anvil_strtoll(const char *restrict __str,
