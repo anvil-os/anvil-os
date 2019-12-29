@@ -7,8 +7,12 @@ void *calloc(size_t nelem, size_t elsize)
     size_t size;
     void *pmem;
 
-    /* TODO: Check for overflow */
+    /* Check for overflow */
     size = nelem * elsize;
+    if (nelem && (size / nelem != elsize))
+    {
+        return NULL;
+    }
 
     if ((pmem = malloc(size)) == NULL)
     {
