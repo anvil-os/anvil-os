@@ -3,5 +3,5 @@
 
 int vscanf(const char *restrict format, _Anvil_va_list arg)
 {
-    return -1;
+    return vfscanf(stdin, format, arg);
 }
