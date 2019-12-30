@@ -1,7 +1,7 @@
 
-#include <stdlib.h>
+#include "_Anvil_atexit.h"
 
 int atexit(void (*func)(void))
 {
-    return -1;
+    return _Anvil_atexit_reg(&_Anvil_atexit_list, func);
 }
