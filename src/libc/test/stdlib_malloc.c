@@ -158,7 +158,7 @@ TEST(stdlib_malloc, stress)
         rand_num = rand() * malloc_size / 32767;
         malloc_size += rand_num;
         char *ptr = MALLOC(malloc_size);
-        //ASSERT_NE(-1, heap_check());
+        ASSERT_NE(-1, heap_check());
         if (ptr)
         {
             p[i] = ptr;
@@ -174,7 +174,7 @@ TEST(stdlib_malloc, stress)
         if (p[i])
         {
             FREE(p[i]);
-            //ASSERT_NE(-1, heap_check());
+            ASSERT_NE(-1, heap_check());
         }
     }
 
@@ -188,7 +188,6 @@ int stdlib_malloc_test()
     CALL_TEST(stdlib_malloc, malloc2);
     CALL_TEST(stdlib_malloc, realloc);
     CALL_TEST(stdlib_malloc, stress);
-
 
     END_TEST_GROUP(stdlib_malloc);
 }
