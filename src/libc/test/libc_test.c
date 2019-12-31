@@ -11,6 +11,7 @@ int libc_test()
     stdio_printf_test();
     stdlib_malloc_test();
     time_test();
+    stdio_io_test();
 
     return 0;
 }

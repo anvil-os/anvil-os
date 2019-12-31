@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define MALLOC_DEBUG
+//#define MALLOC_DEBUG
 #if !defined (MALLOC_DEBUG)
 #define malloc_debug(...)
 #else
