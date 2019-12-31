@@ -211,12 +211,45 @@ TEST(stdlib, strtoull)
     END_TEST(stdlib);
 }
 
+TEST(stdlib, div)
+{
+    div_t res;
+
+    //  I got this table from stack overflow
+    //
+    //     n     |  d     |  q     |  r
+    //    -------|--------|--------|--------
+    //     7     |  3     |  2     |  1
+    //    -7     |  3     | -2     | -1
+    //     7     | -3     | -2     |  1
+    //    -7     | -3     |  2     | -1
+
+    res = div(7, 3);
+    ASSERT_EQ(2, res.quot);
+    ASSERT_EQ(1, res.rem);
+
+    res = div(-7, 3);
+    ASSERT_EQ(-2, res.quot);
+    ASSERT_EQ(-1, res.rem);
+
+    res = div(7, -3);
+    ASSERT_EQ(-2, res.quot);
+    ASSERT_EQ(1, res.rem);
+
+    res = div(-7, -3);
+    ASSERT_EQ(2, res.quot);
+    ASSERT_EQ(-1, res.rem);
+
+    END_TEST(stdlib);
+}
+
 int stdlib_test()
 {
     CALL_TEST(stdlib, strtol);
     CALL_TEST(stdlib, strtoul);
     CALL_TEST(stdlib, strtoll);
     CALL_TEST(stdlib, strtoull);
+    CALL_TEST(stdlib, div);
 
     END_TEST_GROUP(stdlib);
 }
