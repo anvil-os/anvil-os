@@ -8,3 +8,6 @@ sysroot-*
 binutils-*
 gcc-*
 gdb-*
+gmp-*
+mpc-*
+mpfr-*
