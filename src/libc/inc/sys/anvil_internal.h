@@ -101,10 +101,11 @@ struct                      \
 {                           \
     int __fd;               \
     int __status;           \
+    int __buf_size;         \
     char *__buf;            \
     char *__bufend;         \
     char *__wptr;           \
-    char __minibuf;         \
+    char __minibuf[1];      \
 }
 
 long long _Anvil_strtoll(const char *restrict __str,
