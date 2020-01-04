@@ -10,7 +10,6 @@ FILE *fopen(const char *restrict filename, const char *restrict mode)
     int saw_b = 0;
     int saw_plus = 0;
     int stream_mode = 0;
-    int fd;
 
     // The first char can be r, w, or a
     switch (*pmode)
@@ -77,7 +76,12 @@ FILE *fopen(const char *restrict filename, const char *restrict mode)
         return NULL;
     }
 
-    f->__fd = _Anvil_open(filename, open_mode);
+    if ((f->__fd = _Anvil_open(filename, open_mode)) == -1)
+    {
+        free(f);
+        return NULL;
+    }
+
     f->__status = stream_mode | _ANVIL_STDIO_FILE_MALLOCED;
 
     return f;
