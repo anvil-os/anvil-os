@@ -96,18 +96,6 @@ struct                      \
     int __b;                \
 }
 
-#define _Anvil_FILE         \
-struct                      \
-{                           \
-    int __fd;               \
-    int __status;           \
-    int __buf_size;         \
-    char *__buf;            \
-    char *__bufend;         \
-    char *__wptr;           \
-    char __minibuf[1];      \
-}
-
 long long _Anvil_strtoll(const char *restrict __str,
                     char **restrict __endptr,
                     int __base, long long __min,

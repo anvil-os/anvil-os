@@ -27,10 +27,17 @@
 
 #define TMP_MAX         10000
 
-#if !defined (_Anvil_got_FILE)
-typedef _Anvil_FILE FILE;
-#define _Anvil_got_FILE
-#endif
+typedef struct
+{
+    int __fd;
+    int __status;
+    int __buf_size;
+    char *__buf;
+    char *__bufend;
+    char *__rptr;
+    char *__wptr;
+    char __minibuf[1];
+} FILE;
 
 typedef struct
 {

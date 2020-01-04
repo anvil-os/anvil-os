@@ -25,6 +25,7 @@ FILE *fopen(const char *restrict filename, const char *restrict mode)
             break;
         case 'a':
             open_mode = O_WRONLY | O_CREAT | O_APPEND;
+            // Todo: Do we need a stream mode flag for append?
             stream_mode = _ANVIL_STDIO_WRITEABLE;
             break;
         default:
