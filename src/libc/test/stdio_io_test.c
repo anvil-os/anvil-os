@@ -12,6 +12,7 @@
 TEST_GROUP(stdio_io)
 
 char *test_buffer;
+size_t read_file_offs;
 
 long _Anvil_write(int fildes, const void *buf, size_t nbyte)
 {
@@ -20,12 +21,51 @@ long _Anvil_write(int fildes, const void *buf, size_t nbyte)
     return nbyte;
 }
 
+static const char read_file_data[500 + 11 + 7] =
+    "1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"
+    "1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"
+    "1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"
+    "1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"
+    "1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111"
+    "22222222222"
+    "3456789";
+
+long _Anvil_read(int fildes, const void *buf, size_t nbyte)
+{
+    if (fildes == 4)
+    {
+        size_t bytes_to_read = nbyte;
+        if (bytes_to_read > sizeof(read_file_data) - read_file_offs)
+        {
+            bytes_to_read = sizeof(read_file_data) - read_file_offs;
+        }
+        printf("Reading %u %u %u bytes\n", bytes_to_read, sizeof(read_file_data), read_file_offs);
+        printf("Reading %d bytes\n", bytes_to_read);
+        memcpy(buf, read_file_data + read_file_offs, bytes_to_read);
+        read_file_offs += bytes_to_read;
+        return bytes_to_read;
+    }
+    return -1;
+}
+
 int open_flags;
 
 int _Anvil_open(const char *path, int oflag)
 {
-    open_flags = oflag;
-    return 3;
+    if (!strcmp(path, "open_file.txt"))
+    {
+        open_flags = oflag;
+        return 3;
+    }
+    else if (!strcmp(path, "read_file.txt"))
+    {
+        read_file_offs = 0;
+        return 4;
+    }
+    else
+    {
+        return -1;
+    }
 }
 
 int _Anvil_close(int fd)
@@ -58,12 +98,38 @@ TEST(stdio_io, fopen)
     for (i=0; i< sizeof(test_data) / sizeof(test_data[0]); ++i)
     {
         open_flags = 0;
-        f = fopen("abc.txt", test_data[i].flag_str);
+        f = fopen("open_file.txt", test_data[i].flag_str);
         ASSERT_PTR_NE(NULL, f);
         ASSERT_EQ(test_data[i].open_flags, open_flags);
         ASSERT_EQ(test_data[i].stream_flags, f->__status & (_ANVIL_STDIO_READABLE|_ANVIL_STDIO_WRITEABLE));
         ASSERT_EQ(0, fclose(f));
     }
+
+    END_TEST(stdio_io);
+}
+
+TEST(stdio_io, _Anvil_fgetc)
+{
+    FILE *f;
+
+    f = fopen("read_file.txt", "r");
+    ASSERT_PTR_NE(NULL, f);
+
+    for (int i=0; i<500; ++i)
+    {
+        ASSERT_EQ('1', _Anvil_fgetc(f));
+    }
+    for (int i=0; i<11; ++i)
+    {
+        ASSERT_EQ('2', _Anvil_fgetc(f));
+    }
+    for (int i=0; i<7; ++i)
+    {
+        ASSERT_EQ('3' + i, _Anvil_fgetc(f));
+    }
+    ASSERT_EQ(EOF, _Anvil_fgetc(f));
+
+    ASSERT_EQ(0, fclose(f));
 
     END_TEST(stdio_io);
 }
@@ -123,6 +189,7 @@ TEST(stdio_io, _Anvil_fputc)
 int stdio_io_test()
 {
     CALL_TEST(stdio_io, fopen);
+    CALL_TEST(stdio_io, _Anvil_fgetc);
     CALL_TEST(stdio_io, _Anvil_fputc);
 
     END_TEST_GROUP(stdio_io);
