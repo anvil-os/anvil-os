@@ -465,7 +465,7 @@ static int print_num(int (*nputs)(void *, const char *, int ), void *arg, va_lis
      ***************************************/
     padding_char = space;
 
-    if (flags & FLAG_ZEROPAD && !(flags & FLAG_LEFT_JUSTIFY))
+    if ((flags & FLAG_ZEROPAD) && !(flags & FLAG_LEFT_JUSTIFY))
     {
         padding_char = zero;
     }

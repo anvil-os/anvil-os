@@ -8,7 +8,7 @@ int _Anvil_fgetc(FILE *stream)
     // When reading the buffer is slightly different from when writing in that
     // the __bufend pointer may not point to just past the end of the buffer
     // when a 'short' read is made. i.e. when at EOF
-    // The buffer below can hold 8 entries but only contains 4 because that is
+    // The buffer below can hold 6 entries but only contains 4 because that is
     // all that were available
     // Note that we don't return EOF yet since another thread may be writing
     // and another read may succeed. EOF should only be returned when a read()
@@ -40,12 +40,6 @@ int _Anvil_fgetc(FILE *stream)
         return *stream->__rptr++;
     }
 
-    // Check for EOF first
-    if (stream->__status & _ANVIL_STDIO_EOF)
-    {
-        return EOF;
-    }
-
     // Check that we are allowed to read -
     // a) must be readable (or read/writable)
     // b) must not be writing
@@ -55,6 +49,12 @@ int _Anvil_fgetc(FILE *stream)
           (stream->__status & (_ANVIL_STDIO_WRITING | _ANVIL_STDIO_WIDE | _ANVIL_STDIO_ERR)))
     {
         stream->__status |= _ANVIL_STDIO_ERR;
+        return EOF;
+    }
+
+    // Now check for EOF
+    if (stream->__status & _ANVIL_STDIO_EOF)
+    {
         return EOF;
     }
 
