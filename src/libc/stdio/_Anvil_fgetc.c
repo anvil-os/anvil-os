@@ -66,7 +66,7 @@ int _Anvil_fgetc(FILE *stream)
     if (stream->__buf == NULL)
     {
         // This function guarantees a buffer of some type
-        _Anvil_setbuf(stream);
+        _Anvil_initbuf(stream);
     }
 
     // Todo: set all other pointers here?

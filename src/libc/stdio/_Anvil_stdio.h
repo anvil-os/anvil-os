@@ -22,7 +22,7 @@
 
 void _Anvil_flockfile(FILE *stream);
 void _Anvil_funlockfile(FILE *stream);
-void _Anvil_setbuf(FILE *restrict stream);
+void _Anvil_initbuf(FILE *restrict stream);
 int _Anvil_fgetc(FILE *__stream);
 int _Anvil_fputc(int __c, FILE *__stream);
 long _Anvil_write(int __fildes, const void *__buf, size_t __nbyte);
