@@ -52,14 +52,14 @@ int _Anvil_fgetc(FILE *stream)
         return EOF;
     }
 
+    // Commit to being a byte stream in read mode
+    stream->__status |= (_ANVIL_STDIO_BYTE | _ANVIL_STDIO_READING);
+
     // Now check for EOF
     if (stream->__status & _ANVIL_STDIO_EOF)
     {
         return EOF;
     }
-
-    // Commit to being a byte stream in read mode
-    stream->__status |= (_ANVIL_STDIO_BYTE | _ANVIL_STDIO_READING);
 
     // If there is not a buffer yet, create one. Also initialises the pointers in the
     // FILE structure
@@ -68,9 +68,6 @@ int _Anvil_fgetc(FILE *stream)
         // This function guarantees a buffer of some type
         _Anvil_initbuf(stream);
     }
-
-    // Todo: set all other pointers here?
-    stream->__rptr = stream->__buf;
 
     // If we get here we have a completely empty buffer so fill it
     if ((bytes_read = _Anvil_read(stream->__fd, stream->__buf, stream->__buf_size)) < 0)
@@ -90,5 +87,6 @@ int _Anvil_fgetc(FILE *stream)
     stream->__bufend = stream->__buf + bytes_read;
 
     // Return the first char from the buffer
+    stream->__rptr = stream->__buf;
     return *stream->__rptr++;
 }
