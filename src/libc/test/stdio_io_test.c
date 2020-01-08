@@ -39,8 +39,8 @@ long _Anvil_read(int fildes, const void *buf, size_t nbyte)
         {
             bytes_to_read = sizeof(read_file_data) - read_file_offs;
         }
-        printf("Reading %u %u %u bytes\n", bytes_to_read, sizeof(read_file_data), read_file_offs);
-        printf("Reading %d bytes\n", bytes_to_read);
+        //printf("Reading %u %u %u bytes\n", bytes_to_read, sizeof(read_file_data), read_file_offs);
+        //printf("Reading %d bytes\n", bytes_to_read);
         memcpy(buf, read_file_data + read_file_offs, bytes_to_read);
         read_file_offs += bytes_to_read;
         return bytes_to_read;
