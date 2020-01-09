@@ -62,7 +62,7 @@ int setvbuf(FILE *restrict stream, char *restrict buf, int mode, size_t size)
     stream->__status &= ~(_ANVIL_STDIO_NOBUF | _ANVIL_STDIO_LINEBUF |_ANVIL_STDIO_FULLBUF | _ANVIL_STDIO_BUF_MALLOCED);
     stream->__status |= status;
 
-    // Tail call _Anvil_setbuf to set all the other members of stream
+    // Tail call _Anvil_initbuf to set all the other members of stream
     _Anvil_initbuf(stream);
 
     return 0;

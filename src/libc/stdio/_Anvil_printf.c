@@ -20,6 +20,7 @@
 
 static int print_str(int (*nputs)(void *, const char *, int ), void *arg, va_list *ap, int field_width, int precision, int flags);
 static int print_num(int (*nputs)(void *, const char *, int ), void *arg, va_list *ap, int field_width, int precision, int flags);
+static int print_double(int (*nputs)(void *, const char *, int ), void *arg, va_list *ap, int field_width, int precision, int flags);
 static const char lower_digit[] = "0123456789abcdef";
 static const char upper_digit[] = "0123456789ABCDEF";
 static const char space[] = " ";
@@ -201,7 +202,11 @@ int _Anvil_printf(const char *fmt, va_list ap, int (*nputs)(void *, const char *
                  chars_printed += print_num(nputs, arg, &ap, field_width, precision, flags | FLAG_UNSIGNED | FLAG_HEX | FLAG_UPPER);
                  break;
              case 'f':
+                 chars_printed += print_double(nputs, arg, &ap, field_width, precision, flags);
+                 break;
              case 'F':
+                 chars_printed += print_double(nputs, arg, &ap, field_width, precision, flags | FLAG_UPPER);
+                 break;
              case 'e':
              case 'E':
              case 'g':
@@ -512,6 +517,18 @@ static int print_num(int (*nputs)(void *, const char *, int ), void *arg, va_lis
             chars_printed += nputs(arg, padding_char, 1);
         }
     }
+
+    return chars_printed;
+}
+
+static int print_double(int (*nputs)(void *, const char *, int ), void *arg, va_list *ap, int field_width, int precision, int flags)
+{
+    int chars_printed = 0;
+
+
+
+
+
 
     return chars_printed;
 }
