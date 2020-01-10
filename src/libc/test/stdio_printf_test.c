@@ -548,6 +548,43 @@ TEST(stdio_printf, fmt_precision)
     END_TEST(stdio_printf);
 }
 
+TEST(stdio_printf, fmt_f)
+{
+    /* SPRINTF */
+    int (* volatile SPRINTF)(char *restrict s, const char *restrict format, ...) = sprintf;
+    char buf[100];
+
+    struct test_point
+    {
+        char *output;
+        int ret;
+        char *fmt;
+        double arg;
+    };
+
+    struct test_point test_vector[] =
+    {
+        { "123.0",  1, "%f", 123.0 },
+        { "-123.0",  1, "%f", -123.0 },
+        { "9999999999.0",  1, "%f", 9999999999.0 },
+        { "12345.6789",  1, "%f", 12345.6789 },
+        { "99999.99999",  1, "%f", 99999.99999 },
+        { "100000.00000",  1, "%f", 100000.00000 },
+        { "100000.00001",  1, "%f", 100000.00001 },
+        { 0 }
+    };
+
+    for (int i=0; test_vector[i].output; ++i)
+    {
+        printf("\n");
+        printf(test_vector[i].fmt, test_vector[i].arg);
+        printf("\n");
+        //ASSERT_EQ(test_vector[i].ret, SPRINTF(buf, test_vector[i].fmt, test_vector[i].arg));
+        //ASSERT_EQ(0, strcmp(buf, test_vector[i].output));
+    }
+    END_TEST(stdio_printf);
+}
+
 int stdio_printf_test()
 {
     CALL_TEST(stdio_printf, fmt_none);
@@ -568,6 +605,8 @@ int stdio_printf_test()
     CALL_TEST(stdio_printf, fmt_o);
     CALL_TEST(stdio_printf, fmt_sign);
     CALL_TEST(stdio_printf, fmt_precision);
+
+    CALL_TEST(stdio_printf, fmt_f);
 
     END_TEST_GROUP(stdio_printf);
 }

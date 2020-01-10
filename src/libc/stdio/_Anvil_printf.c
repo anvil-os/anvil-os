@@ -521,14 +521,96 @@ static int print_num(int (*nputs)(void *, const char *, int ), void *arg, va_lis
     return chars_printed;
 }
 
+static int debug_print_num(int (*nputs)(void *, const char *, int ), void *arg, unsigned long long val, int radix)
+{
+    char buf[50];
+    char *p_num;
+    int num_len;
+
+    p_num = &buf[50];
+    num_len = 0;
+    while (val)
+    {
+        *--p_num = lower_digit[val % radix];
+        val /= radix;
+        ++num_len;
+    }
+    return nputs(arg, p_num, num_len);
+}
+
 static int print_double(int (*nputs)(void *, const char *, int ), void *arg, va_list *ap, int field_width, int precision, int flags)
 {
     int chars_printed = 0;
 
+    union
+    {
+        unsigned long long uint;
+        double dbl;
+    } value;
 
+    int sign;
+    int exp2;
+    int exp10;
+    unsigned long long mant;
+    char buf[50];
+    char *p_num;
+    int num_len;
+    //unsigned long long val;
+    int scale_val;
+    double cmp_val = 10.0;
 
+    value.dbl = va_arg(*ap, double);
+    sign = value.uint >> 63;
+    exp2 = ((value.uint >> 52) & 0x7ff) - 1023;
+    mant = value.uint & 0xfffffffffffff;
 
+    scale_val = 1;
+    while (1)
+    {
+        if (value.dbl < cmp_val)
+        {
+            break;
+        }
+        cmp_val *= 10;
+        ++scale_val;
+    }
+    cmp_val /= 10;
 
+    chars_printed += nputs(arg, "|", 1);
+    debug_print_num(nputs, arg, sign, 10);
+    chars_printed += nputs(arg, "|", 1);
+    debug_print_num(nputs, arg, exp2, 10);
+    chars_printed += nputs(arg, "|", 1);
+    debug_print_num(nputs, arg, mant, 2);
+    chars_printed += nputs(arg, "|", 1);
+    debug_print_num(nputs, arg, scale_val, 10);
+    chars_printed += nputs(arg, "|", 1);
+    debug_print_num(nputs, arg, (unsigned long long)cmp_val, 10);
+    chars_printed += nputs(arg, "|", 1);
+
+    mant |= 0x10000000000000;
+    exp2 -= 52;
+
+    while (exp2 > 0)
+    {
+        mant *= 2;
+        --exp2;
+    }
+    while (exp2 < 0)
+    {
+        mant /= 2;
+        ++exp2;
+    }
+
+    chars_printed += nputs(arg, "\n", 1);
+
+    chars_printed += nputs(arg, "|", 1);
+    debug_print_num(nputs, arg, sign, 10);
+    chars_printed += nputs(arg, "|", 1);
+    debug_print_num(nputs, arg, exp2, 10);
+    chars_printed += nputs(arg, "|", 1);
+    debug_print_num(nputs, arg, mant, 10);
+    chars_printed += nputs(arg, "|", 1);
 
     return chars_printed;
 }
