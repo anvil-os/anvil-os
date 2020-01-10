@@ -541,7 +541,7 @@ static int print_num(struct printf_ctx *ctx)
     return 0;
 }
 
-static int debug_print_num(int (*nputs)(void *, const char *, int ), void *arg, unsigned long long val, int radix)
+static int debug_print_num(struct printf_ctx *ctx, unsigned long long val, int radix)
 {
     char buf[50];
     char *p_num;
@@ -555,7 +555,7 @@ static int debug_print_num(int (*nputs)(void *, const char *, int ), void *arg, 
         val /= radix;
         ++num_len;
     }
-    return nputs(arg, p_num, num_len);
+    return ctx->nputs(ctx->arg, p_num, num_len);
 }
 
 static int print_double(struct printf_ctx *ctx)
@@ -595,15 +595,15 @@ static int print_double(struct printf_ctx *ctx)
     cmp_val /= 10;
 
     ctx->chars_printed += ctx->nputs(ctx->arg, "|", 1);
-    debug_print_num(ctx->nputs, ctx->arg, sign, 10);
+    debug_print_num(ctx, sign, 10);
     ctx->chars_printed += ctx->nputs(ctx->arg, "|", 1);
-    debug_print_num(ctx->nputs, ctx->arg, exp2, 10);
+    debug_print_num(ctx, exp2, 10);
     ctx->chars_printed += ctx->nputs(ctx->arg, "|", 1);
-    debug_print_num(ctx->nputs, ctx->arg, mant, 2);
+    debug_print_num(ctx, mant, 2);
     ctx->chars_printed += ctx->nputs(ctx->arg, "|", 1);
-    debug_print_num(ctx->nputs, ctx->arg, scale_val, 10);
+    debug_print_num(ctx, scale_val, 10);
     ctx->chars_printed += ctx->nputs(ctx->arg, "|", 1);
-    debug_print_num(ctx->nputs, ctx->arg, (unsigned long long)cmp_val, 10);
+    debug_print_num(ctx, (unsigned long long)cmp_val, 10);
     ctx->chars_printed += ctx->nputs(ctx->arg, "|", 1);
 
     mant |= 0x10000000000000;
@@ -623,11 +623,11 @@ static int print_double(struct printf_ctx *ctx)
     ctx->chars_printed += ctx->nputs(ctx->arg, "\n", 1);
 
     ctx->chars_printed += ctx->nputs(ctx->arg, "|", 1);
-    debug_print_num(ctx->nputs, ctx->arg, sign, 10);
+    debug_print_num(ctx, sign, 10);
     ctx->chars_printed += ctx->nputs(ctx->arg, "|", 1);
-    debug_print_num(ctx->nputs, ctx->arg, exp2, 10);
+    debug_print_num(ctx, exp2, 10);
     ctx->chars_printed += ctx->nputs(ctx->arg, "|", 1);
-    debug_print_num(ctx->nputs, ctx->arg, mant, 10);
+    debug_print_num(ctx, mant, 10);
     ctx->chars_printed += ctx->nputs(ctx->arg, "|", 1);
 
     return 0;
