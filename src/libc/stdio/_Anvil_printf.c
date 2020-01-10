@@ -313,8 +313,6 @@ static int print_str(struct printf_ctx *ctx)
 static int print_num(struct printf_ctx *ctx)
 {
     int num_len;
-    char buf[20];
-    char *p_num;
     unsigned long long ullval;
     int neg = 0;
     unsigned radix;
@@ -541,7 +539,6 @@ static int print_num(struct printf_ctx *ctx)
      * Print the number
      ***************************************/
     digit = ctx->flags & FLAG_UPPER ? upper_digit : lower_digit;
-    p_num = buf;
     while (scale)
     {
         ctx->chars_printed += ctx->nputs(ctx->arg, &digit[ullval / scale], 1);
@@ -549,7 +546,9 @@ static int print_num(struct printf_ctx *ctx)
         scale /= radix;
     }
 
-    // Print padding on the right
+    /****************************************
+     * Print padding on the right
+     ***************************************/
     if (ctx->flags & FLAG_LEFT_JUSTIFY)
     {
         while (padding_width--)
