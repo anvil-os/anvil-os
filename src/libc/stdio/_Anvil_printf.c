@@ -323,6 +323,7 @@ static int print_num(struct printf_ctx *ctx)
     int prepend_width;
     int padding_width;
     const char *padding_char;
+    unsigned long long scale;
 
     /****************************************
      * Read value depending on the length
@@ -402,20 +403,6 @@ static int print_num(struct printf_ctx *ctx)
     }
 
     /****************************************
-     * Convert the number to a string
-     ***************************************/
-    digit = ctx->flags & FLAG_UPPER ? upper_digit : lower_digit;
-
-    p_num = &buf[20];
-    num_len = 0;
-    while (ullval)
-    {
-        *--p_num = digit[ullval % radix];
-        ullval /= radix;
-        ++num_len;
-    }
-
-    /****************************************
      * The sign char
      ***************************************/
     sign_char = 0;
@@ -437,6 +424,28 @@ static int print_num(struct printf_ctx *ctx)
                 sign_char = ' ';
             }
         }
+    }
+
+    /****************************************
+     * Work out how long the number will be
+     ***************************************/
+    scale = 1;
+    num_len = 0;
+    while (1)
+    {
+        unsigned long long new_scale;
+        if (scale > ullval)
+        {
+            scale /= radix;
+            break;
+        }
+        new_scale = scale * radix;
+        ++num_len;
+        if (new_scale < scale)
+        {
+            break;
+        }
+        scale = new_scale;
     }
 
     /****************************************
@@ -528,8 +537,19 @@ static int print_num(struct printf_ctx *ctx)
         ctx->chars_printed += ctx->nputs(ctx->arg, zero, 1);
     }
 
-    ctx->chars_printed += ctx->nputs(ctx->arg, p_num, num_len);
+    /****************************************
+     * Print the number
+     ***************************************/
+    digit = ctx->flags & FLAG_UPPER ? upper_digit : lower_digit;
+    p_num = buf;
+    while (scale)
+    {
+        ctx->chars_printed += ctx->nputs(ctx->arg, &digit[ullval / scale], 1);
+        ullval %= scale;
+        scale /= radix;
+    }
 
+    // Print padding on the right
     if (ctx->flags & FLAG_LEFT_JUSTIFY)
     {
         while (padding_width--)
