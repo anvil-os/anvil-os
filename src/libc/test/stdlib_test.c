@@ -211,6 +211,14 @@ TEST(stdlib, strtoull)
     END_TEST(stdlib);
 }
 
+TEST(stdlib, strtod)
+{
+    double (* volatile STRTOD)(const char *restrict nptr, char **restrict endptr) = strtod;
+
+    END_TEST(stdlib);
+}
+
+
 TEST(stdlib, div)
 {
     div_t res;
@@ -249,6 +257,9 @@ int stdlib_test()
     CALL_TEST(stdlib, strtoul);
     CALL_TEST(stdlib, strtoll);
     CALL_TEST(stdlib, strtoull);
+
+    CALL_TEST(stdlib, strtod);
+
     CALL_TEST(stdlib, div);
 
     END_TEST_GROUP(stdlib);

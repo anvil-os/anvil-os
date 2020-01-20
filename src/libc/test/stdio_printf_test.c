@@ -582,6 +582,7 @@ TEST(stdio_printf, fmt_f)
         //ASSERT_EQ(test_vector[i].ret, SPRINTF(buf, test_vector[i].fmt, test_vector[i].arg));
         //ASSERT_EQ(0, strcmp(buf, test_vector[i].output));
     }
+
     END_TEST(stdio_printf);
 }
 

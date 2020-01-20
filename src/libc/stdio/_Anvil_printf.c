@@ -3,20 +3,30 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <string.h>
+#include <stdint.h>
+#include <stddef.h>
 
-#define FLAG_LEFT_JUSTIFY       (1)
-#define FLAG_SHOW_SIGN          (2)
-#define FLAG_SPACE              (4)
-#define FLAG_ALTERNATIVE        (8)
-#define FLAG_ZEROPAD            (16)
-#define FLAG_CHAR               (32)
-#define FLAG_SHORT              (64)
-#define FLAG_LONG               (128)
-#define FLAG_LONGLONG           (256)
-#define FLAG_UNSIGNED           (512)
-#define FLAG_OCTAL              (1024)
-#define FLAG_HEX                (2048)
-#define FLAG_UPPER              (4096)
+#define FLAG_SIZE_MASK          (0x000f)
+#define FLAG_CHAR_T             (0x0001)
+#define FLAG_SHORT_T            (0x0002)
+#define FLAG_LONG_T             (0x0003)
+#define FLAG_LONGLONG_T         (0x0004)
+#define FLAG_INTMAX_T           (0x0005)
+#define FLAG_SIZE_T             (0x0006)
+#define FLAG_PTRDIFF_T          (0x0007)
+#define FLAG_LONG_DBL_T         (0x0008)
+
+#define FLAG_LEFT_JUSTIFY       (0x0010)
+#define FLAG_SHOW_SIGN          (0x0020)
+#define FLAG_SPACE              (0x0040)
+#define FLAG_ALTERNATIVE        (0x0080)
+#define FLAG_ZEROPAD            (0x0100)
+#define FLAG_UNSIGNED           (0x0200)
+#define FLAG_OCTAL              (0x0400)
+#define FLAG_HEX                (0x0800)
+#define FLAG_UPPER              (0x1000)
+#define FLAG_FIXED              (0x2000)
+#define FLAG_EXP                (0x4000)
 
 struct printf_ctx
 {
@@ -165,31 +175,41 @@ int _Anvil_printf(const char *fmt, va_list ap, int (*nputs)(void *, const char *
                 ++fmt;
                 if (*fmt == 'h')
                 {
-                    ctx.flags |= FLAG_CHAR;
+                    ctx.flags |= FLAG_CHAR_T;
                     ++fmt;
                 }
                 else
                 {
-                    ctx.flags |= FLAG_SHORT;
+                    ctx.flags |= FLAG_SHORT_T;
                 }
                 break;
             case 'l':
                 ++fmt;
                 if (*fmt == 'l')
                 {
-                    ctx.flags |= FLAG_LONGLONG;
+                    ctx.flags |= FLAG_LONGLONG_T;
                     ++fmt;
                 }
                 else
                 {
-                    ctx.flags |= FLAG_LONG;
+                    ctx.flags |= FLAG_LONG_T;
                 }
                 break;
             case 'j':
+                ++fmt;
+                ctx.flags |= FLAG_INTMAX_T;
+                break;
             case 'z':
+                ++fmt;
+                ctx.flags |= FLAG_SIZE_T;
+                break;
             case 't':
+                ++fmt;
+                ctx.flags |= FLAG_PTRDIFF_T;
+                break;
             case 'L':
                 ++fmt;
+                ctx.flags |= FLAG_LONG_DBL_T;
                 break;
         }
 
@@ -219,18 +239,36 @@ int _Anvil_printf(const char *fmt, va_list ap, int (*nputs)(void *, const char *
                  print_num(&ctx);
                  break;
              case 'f':
+                 ctx.flags |= FLAG_FIXED;
                  print_double(&ctx);
                  break;
              case 'F':
-                 ctx.flags |= FLAG_UPPER;
+                 ctx.flags |= (FLAG_FIXED | FLAG_UPPER);
                  print_double(&ctx);
                  break;
              case 'e':
+                 ctx.flags |= FLAG_EXP;
+                 print_double(&ctx);
+                 break;
              case 'E':
+                 ctx.flags |= (FLAG_EXP | FLAG_UPPER);
+                 print_double(&ctx);
+                 break;
              case 'g':
+                 print_double(&ctx);
+                 break;
              case 'G':
+                 ctx.flags |= FLAG_UPPER;
+                 print_double(&ctx);
+                 break;
              case 'a':
+                 ctx.flags |= FLAG_HEX;
+                 print_double(&ctx);
+                 break;
              case 'A':
+                 ctx.flags |= (FLAG_HEX | FLAG_UPPER);
+                 print_double(&ctx);
+                 break;
              case 'c':
                  break;
              case 's':
@@ -329,49 +367,63 @@ static int print_num(struct printf_ctx *ctx)
      ***************************************/
     if (ctx->flags & FLAG_UNSIGNED)
     {
-        if (ctx->flags & FLAG_CHAR)
+        switch (ctx->flags & FLAG_SIZE_MASK)
         {
-            ullval = (unsigned char)va_arg(ctx->ap, unsigned int);
-        }
-        else if (ctx->flags & FLAG_SHORT)
-        {
-            ullval = (unsigned short)va_arg(ctx->ap, unsigned int);
-        }
-        else if (ctx->flags & FLAG_LONG)
-        {
-            ullval = va_arg(ctx->ap, unsigned long);
-        }
-        else if (ctx->flags & FLAG_LONGLONG)
-        {
-            ullval = va_arg(ctx->ap, unsigned long long);
-        }
-        else
-        {
-            ullval = va_arg(ctx->ap, unsigned int);
+            case FLAG_CHAR_T:
+                ullval = (unsigned char)va_arg(ctx->ap, unsigned int);
+                break;
+            case FLAG_SHORT_T:
+                ullval = (unsigned short)va_arg(ctx->ap, unsigned int);
+                break;
+            case FLAG_LONG_T:
+                ullval = va_arg(ctx->ap, unsigned long);
+                break;
+            case FLAG_LONGLONG_T:
+                ullval = va_arg(ctx->ap, unsigned long long);
+                break;
+            case FLAG_INTMAX_T:
+                ullval = va_arg(ctx->ap, uintmax_t);
+                break;
+            case FLAG_SIZE_T:
+                ullval = va_arg(ctx->ap, size_t);
+                break;
+            case FLAG_PTRDIFF_T:
+                ullval = va_arg(ctx->ap, ptrdiff_t);
+                break;
+            default:
+                ullval = va_arg(ctx->ap, unsigned int);
+                break;
         }
     }
     else
     {
         long long llval;
-        if (ctx->flags & FLAG_CHAR)
+        switch (ctx->flags & FLAG_SIZE_MASK)
         {
-            llval = (char)va_arg(ctx->ap, int);
-        }
-        else if (ctx->flags & FLAG_SHORT)
-        {
-            llval = (short)va_arg(ctx->ap, int);
-        }
-        else if (ctx->flags & FLAG_LONG)
-        {
-            llval = va_arg(ctx->ap, long);
-        }
-        else if (ctx->flags & FLAG_LONGLONG)
-        {
-            llval = va_arg(ctx->ap, long long);
-        }
-        else
-        {
-            llval = va_arg(ctx->ap, int);
+            case FLAG_CHAR_T:
+                llval = (char)va_arg(ctx->ap, int);
+                break;
+            case FLAG_SHORT_T:
+                llval = (short)va_arg(ctx->ap, int);
+                break;
+            case FLAG_LONG_T:
+                llval = va_arg(ctx->ap, long);
+                break;
+            case FLAG_LONGLONG_T:
+                llval = va_arg(ctx->ap, long long);
+                break;
+            case FLAG_INTMAX_T:
+                llval = va_arg(ctx->ap, intmax_t);
+                break;
+            case FLAG_SIZE_T:
+                llval = va_arg(ctx->ap, size_t);
+                break;
+            case FLAG_PTRDIFF_T:
+                llval = va_arg(ctx->ap, ptrdiff_t);
+                break;
+            default:
+                llval = va_arg(ctx->ap, int);
+                break;
         }
         if (llval < 0)
         {
@@ -404,23 +456,19 @@ static int print_num(struct printf_ctx *ctx)
      * The sign char
      ***************************************/
     sign_char = 0;
-
-    if (!(ctx->flags & FLAG_UNSIGNED))
+    if (neg)
     {
-        if (neg)
+        sign_char = '-';
+    }
+    else
+    {
+        if (ctx->flags & FLAG_SHOW_SIGN)
         {
-            sign_char = '-';
+            sign_char = '+';
         }
-        else
+        else if (ctx->flags & FLAG_SPACE)
         {
-            if (ctx->flags & FLAG_SHOW_SIGN)
-            {
-                sign_char = '+';
-            }
-            else if (ctx->flags & FLAG_SPACE)
-            {
-                sign_char = ' ';
-            }
+            sign_char = ' ';
         }
     }
 
