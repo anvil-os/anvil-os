@@ -16,7 +16,7 @@ struct TestData
     uint32_t low;
 };
 
-struct TestData test_data[] =
+struct TestData base_10_parser[] =
 {
     { "1234.5678", 0x40934a45, 0x6d5cfaad },
     { ".12345678e4", 0x40934a45, 0x6d5cfaad },
@@ -36,23 +36,20 @@ struct TestData test_data[] =
     { "-0000.0012345678e00006", 0xc0934a45, 0x6d5cfaad },
 };
 
-TEST(stdlib_strtod, strtod)
+TEST(stdlib_strtod, base_10_parser)
 {
     double (* volatile STRTOD)(const char *restrict nptr, char **restrict endptr) = strtod;
 
-    for (size_t i=0; i<sizeof(test_data)/sizeof(test_data[0]); ++i)
+    for (size_t i=0; i<sizeof(base_10_parser)/sizeof(base_10_parser[0]); ++i)
     {
         union
         {
             double dbl;
             uint32_t uint[2];
         } res;
-        printf("---- %s ----\n", test_data[i].str);
-        res.dbl = STRTOD(test_data[i].str, NULL);
-        //printf("%08x %08x\n", test_data[i].low, res.uint[0]);
-        ASSERT_EQ(test_data[i].low, res.uint[0]);
-        //printf("%08x %08x\n", test_data[i].high, res.uint[1]);
-        ASSERT_EQ(test_data[i].high, res.uint[1]);
+        res.dbl = STRTOD(base_10_parser[i].str, NULL);
+        ASSERT_EQ(base_10_parser[i].low, res.uint[0]);
+        ASSERT_EQ(base_10_parser[i].high, res.uint[1]);
     }
 
     END_TEST(stdlib_strtod);
@@ -60,7 +57,7 @@ TEST(stdlib_strtod, strtod)
 
 int stdlib_strtod_test()
 {
-    CALL_TEST(stdlib_strtod, strtod);
+    CALL_TEST(stdlib_strtod, base_10_parser);
 
     END_TEST_GROUP(stdlib_strtod);
 }

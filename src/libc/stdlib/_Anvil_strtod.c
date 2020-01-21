@@ -6,23 +6,38 @@
 #include <ctype.h>
 #include <stdio.h>
 
-double ten_to_e(int e)
+double ten_to_e(unsigned e)
 {
-    double res = 1.0;
-    if (e > 0)
+    static const double pos_exp[] =
     {
-        for (int i=0; i<e; ++i)
-        {
-            res *= 10.0;
-        }
+        1e1, 1e2, 1e3, 1e4, 1e5,
+        1e6, 1e7, 1e8, 1e9, 1e10,
+        1e11, 1e12, 1e13, 1e14, 1e15
+    };
+    static const double bin_exp[] =
+    {
+        1e16, 1e32, 1e64, 1e128, 1e256
+    };
+
+    double res;
+    int ndx;
+
+    if (e == 0)
+    {
+        return 1.0;
     }
-    else
+
+    res = pos_exp[(e & 0xf) - 1];
+    e >>= 4;
+    ndx = 0;
+    while (e)
     {
-        e = -e;
-        for (int i=0; i<e; ++i)
+        if (e & 1)
         {
-            res /= 10.0;
+            res *= bin_exp[ndx];
         }
+        ++ndx;
+        e >>= 1;
     }
 
     return res;
@@ -208,7 +223,15 @@ double _Anvil_strtod(const char *restrict nptr, char **restrict endptr)
 
     printf("m=%lld e=%d\n", mantissa, exponent + mantissa_exp);
 
-    double estimate = (double)mantissa * ten_to_e(exponent + mantissa_exp);
+    double estimate;
+    if (exponent + mantissa_exp < 0)
+    {
+        estimate = (double)mantissa / ten_to_e(-(exponent + mantissa_exp));
+    }
+    else
+    {
+        estimate = (double)mantissa * ten_to_e(exponent + mantissa_exp);
+    }
 
     dump_double(estimate);
 
