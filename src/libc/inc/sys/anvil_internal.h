@@ -101,6 +101,8 @@ long long _Anvil_strtoll(const char *restrict __str,
                     int __base, long long __min,
                     unsigned long long __max);
 
+double _Anvil_strtod(const char *restrict nptr, char **restrict endptr);
+
 int _Anvil_printf(const char *__fmt, _Anvil_va_list __ap, int (*__nputs)(void *, const char *, int), void *__arg);
 
 extern int _Errno;
