@@ -6,11 +6,245 @@
 #include <ctype.h>
 #include <stdio.h>
 
+#include "_Anvil_xint.h"
+
+static const int n = 53;
+static const int p = 64;
+
+uint64_t two_to_p = 1LL << p;                // 2^64
+uint64_t two_to_n = 1LL << n;                // 2^53
+int64_t two_to_p_n_1 = 1LL << (p - n - 1);   // 2^10
+uint64_t two_to_p_minus_n = 1LL << (p - n);  // 2^9
+uint64_t two_to_n_minus_1 = 1LL << (n - 1);  // 2^52
+uint64_t two_to_n_plus_1 = 1LL << (n + 1);  // 2^54
+uint64_t log5_of_two = 23;  // ceil(log two_to_n / log 5)
+
+uint64_t float_significand(double z)
+{
+    union
+    {
+        double dbl;
+        uint64_t uint;
+    } z_z;
+    z_z.dbl = z;
+    uint64_t sig = z_z.uint & 0xfffffffffffff;
+    sig |= 0x10000000000000;
+    return sig;
+}
+
+int float_exponent(double z)
+{
+    union
+    {
+        double dbl;
+        uint64_t uint;
+    } z_z;
+    z_z.dbl = z;
+    int e = ((z_z.uint >> 52) & 0x7ff);
+    e -= 1023;
+    e -= 52;
+    return e;
+}
+
+double make_float(uint64_t m, int k)
+{
+    union
+    {
+        double dbl;
+        uint64_t uint;
+    } z_z;
+    z_z.uint = m;
+    z_z.uint &= ~0x0010000000000000;
+    k += 1023;
+    k += 52;
+    z_z.uint |= ((uint64_t)k << 52);
+    return z_z.dbl;
+}
+
+double prev_float(double z)
+{
+    uint64_t m = float_significand(z);
+    int k = float_exponent(z);
+    if (m == two_to_n_minus_1)
+    {
+        return make_float(two_to_n - 1, k - 1);
+    }
+    else
+    {
+        return make_float(m - 1, k);
+    }
+}
+
+double next_float(double z)
+{
+    uint64_t m = float_significand(z);
+    int k = float_exponent(z);
+    if (m == two_to_n - 1)
+    {
+        return make_float(two_to_n_minus_1, k + 1);
+    }
+    else
+    {
+        return make_float(m + 1, k);
+    }
+}
+
+double algoritm_r(_Anvil_xint *f, int e, double z0)
+{
+    double z = z0;
+    _Anvil_xint x;
+    _Anvil_xint y;
+    _Anvil_xint D_abs;
+    _Anvil_xint D2;
+    _Anvil_xint M;
+    _Anvil_xint_init(&x);
+    _Anvil_xint_init(&y);
+    _Anvil_xint_init(&D_abs);
+    _Anvil_xint_init(&D2);
+    _Anvil_xint_init(&M);
+
+    int loop = 0;
+
+    while (1)
+    {
+        //dump_double(z);
+        uint64_t m = float_significand(z);
+        int k = float_exponent(z);
+
+        printf("m=%lld k=%d\n", m, k);
+
+        _Anvil_xint_assign(&x, f);
+
+        _Anvil_xint_assign_64(&y, m);
+
+        if (e >= 0)
+        {
+            if (k >= 0)
+            {
+                // x = f * 10^e
+                _Anvil_xint_mul_10exp(&x, e);
+                // y = m * 2^k
+                _Anvil_xint_mul_2exp(&y, k);
+            }
+            else
+            {
+                // x = f * 10^e * 2^-k
+                _Anvil_xint_mul_10exp(&x, e);
+                _Anvil_xint_mul_2exp(&x, -k);
+                // y = m
+                ;
+            }
+        }
+        else
+        {
+            if (k >= 0)
+            {
+                // x = f
+                ;
+                // y = m * 2^k * 10^-e
+                _Anvil_xint_mul_2exp(&y, k);
+                _Anvil_xint_mul_10exp(&y, -e);
+            }
+            else
+            {
+                // x = f * 2^-k
+                _Anvil_xint_mul_2exp(&x, -k);
+                // y = m * 10^-e
+                _Anvil_xint_mul_10exp(&y, -e);
+            }
+        }
+
+        // D = x - y
+        int D_sign = _Anvil_xint_cmp(&x, &y);
+        if (D_sign > 0)
+        {
+            _Anvil_xint_sub(&D_abs, &x, &y);
+        }
+        else
+        {
+            _Anvil_xint_sub(&D_abs, &y, &x);
+        }
+
+        //printf("D2 abs %lx %lx\n", D_abs.data[0], D_abs.data[1]);
+
+        // D2 = 2 * m * abs(d)
+        _Anvil_xint_assign_64(&M, m);
+
+        _Anvil_xint_mul(&D2, &M, &D_abs);
+        _Anvil_xint_mul_int(&D2, 2);
+
+        // Compare D2 with y
+        int cmp_d2_y = _Anvil_xint_cmp(&D2, &y);
+
+        if (cmp_d2_y < 0)
+        {
+            //printf("cmp_d2_y < 0\n");
+
+            //DIGIT_T TWO_D2[NUM_DIGS];
+            _Anvil_xint_mul_int(&D2, 2);
+            int cmp_2d2_y = _Anvil_xint_cmp(&D2, &y);
+            // D2 < y
+            if ((m == two_to_n_minus_1) && (D_sign < 0) && (cmp_2d2_y > 0))
+            {
+                z = prev_float(z);
+            }
+            else
+            {
+                printf("Loops = %d\n", loop);
+                return z;
+            }
+        }
+        else if (cmp_d2_y == 0)
+        {
+//            printf("cmp_d2_y == 0\n");
+            // If m is even
+            if ((m % 2) == 0)
+            {
+                if ((m == two_to_n_minus_1) && (D_sign < 0))
+                {
+                    z = prev_float(z);
+                }
+                else
+                {
+                    printf("Loops = %d\n", loop);
+                    return z;
+                }
+            }
+            else
+            {
+                if (D_sign < 0)
+                {
+                    printf("Loops = %d\n", loop);
+                    return prev_float(z);
+                }
+                if (D_sign > 0)
+                {
+                    printf("Loops = %d\n", loop);
+                    return next_float(z);
+                }
+            }
+        }
+        else
+        {
+            //printf("cmp_d2_y > 0\n");
+            if (D_sign < 0)
+            {
+                z = prev_float(z);
+            }
+            if (D_sign > 0)
+            {
+                z = next_float(z);
+            }
+        }
+        ++loop;
+    }
+}
+
 double ten_to_e(unsigned e)
 {
     static const double pos_exp[] =
     {
-        1e1, 1e2, 1e3, 1e4, 1e5,
+        1e0, 1e1, 1e2, 1e3, 1e4, 1e5,
         1e6, 1e7, 1e8, 1e9, 1e10,
         1e11, 1e12, 1e13, 1e14, 1e15
     };
@@ -27,7 +261,7 @@ double ten_to_e(unsigned e)
         return 1.0;
     }
 
-    res = pos_exp[(e & 0xf) - 1];
+    res = pos_exp[(e & 0xf)];
     e >>= 4;
     ndx = 0;
     while (e)
@@ -69,6 +303,8 @@ double _Anvil_strtod(const char *restrict nptr, char **restrict endptr)
     int mantissa_exp;
     int dec_point;
     int mantissa_full;
+
+    _Anvil_xint mant_big;
 
     // Skip the whitespace
     while (isspace(*str))
@@ -145,6 +381,8 @@ double _Anvil_strtod(const char *restrict nptr, char **restrict endptr)
                 {
                     // We overflowed - record the error but keep eating digits
                     mantissa_full = 1;
+                    _Anvil_xint_init(&mant_big);
+                    _Anvil_xint_assign_64(&mant_big, mantissa);
                 }
                 else
                 {
@@ -153,6 +391,8 @@ double _Anvil_strtod(const char *restrict nptr, char **restrict endptr)
             }
             else
             {
+                _Anvil_xint_mul_int(&mant_big, 10);
+                _Anvil_xint_add_int(&mant_big, digit);
                 ++mantissa_exp;
             }
         }
@@ -165,6 +405,8 @@ double _Anvil_strtod(const char *restrict nptr, char **restrict endptr)
             }
             else
             {
+                _Anvil_xint_mul_int(&mant_big, 10);
+                _Anvil_xint_add_int(&mant_big, digit);
             }
         }
         ++str;
@@ -239,5 +481,12 @@ double _Anvil_strtod(const char *restrict nptr, char **restrict endptr)
     {
         estimate = -estimate;
     }
-    return estimate;
+
+    if (!mantissa_full)
+    {
+        _Anvil_xint_init(&mant_big);
+        _Anvil_xint_assign_64(&mant_big, mantissa);
+    }
+
+    return algoritm_r(&mant_big, exponent + mantissa_exp, estimate);
 }
