@@ -119,6 +119,8 @@ long long _Anvil_strtoll(
             unsigned long long new_total = total * base + digit;
             if (new_total > max || new_total < total)
             {
+                // Todo: FIXME: XXX: this is actually wrong. Not all
+                // overflows are detected this way
                 /* We overflowed - record the error but keep eating digits */
                 total = max;
                 range_error = 1;

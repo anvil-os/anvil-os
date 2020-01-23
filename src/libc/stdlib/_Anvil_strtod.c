@@ -111,7 +111,7 @@ double algoritm_r(_Anvil_xint *f, int e, double z0)
         uint64_t m = float_significand(z);
         int k = float_exponent(z);
 
-        printf("m=%lld k=%d\n", m, k);
+        //printf("m=%lld k=%d\n", m, k);
 
         _Anvil_xint_assign(&x, f);
 
@@ -240,19 +240,19 @@ double algoritm_r(_Anvil_xint *f, int e, double z0)
     }
 }
 
+static const double pos_exp[] =
+{
+    1e0, 1e1, 1e2, 1e3, 1e4, 1e5,
+    1e6, 1e7, 1e8, 1e9, 1e10,
+    1e11, 1e12, 1e13, 1e14, 1e15
+};
+static const double bin_exp[] =
+{
+    1e16, 1e32, 1e64, 1e128, 1e256
+};
+
 double ten_to_e(unsigned e)
 {
-    static const double pos_exp[] =
-    {
-        1e0, 1e1, 1e2, 1e3, 1e4, 1e5,
-        1e6, 1e7, 1e8, 1e9, 1e10,
-        1e11, 1e12, 1e13, 1e14, 1e15
-    };
-    static const double bin_exp[] =
-    {
-        1e16, 1e32, 1e64, 1e128, 1e256
-    };
-
     double res;
     int ndx;
 
@@ -377,21 +377,25 @@ double _Anvil_strtod(const char *restrict nptr, char **restrict endptr)
             if (!mantissa_full)
             {
                 uint64_t new_mantissa = mantissa * base + digit;
-                if (new_mantissa < mantissa)
+                if (mantissa != ((new_mantissa - digit) / base))
                 {
                     // We overflowed - record the error but keep eating digits
                     mantissa_full = 1;
                     _Anvil_xint_init(&mant_big);
                     _Anvil_xint_assign_64(&mant_big, mantissa);
+                    _Anvil_xint_mul_int(&mant_big, base);
+                    _Anvil_xint_add_int(&mant_big, digit);
+                    ++mantissa_exp;
                 }
                 else
                 {
                     mantissa = new_mantissa;
+                    //printf("mant=%llu\n", mantissa);
                 }
             }
             else
             {
-                _Anvil_xint_mul_int(&mant_big, 10);
+                _Anvil_xint_mul_int(&mant_big, base);
                 _Anvil_xint_add_int(&mant_big, digit);
                 ++mantissa_exp;
             }
@@ -463,24 +467,55 @@ double _Anvil_strtod(const char *restrict nptr, char **restrict endptr)
         }
     }
 
-    printf("m=%lld e=%d\n", mantissa, exponent + mantissa_exp);
+    printf("m=%lld e=%d m=%d e+m=%d\n", mantissa, exponent, mantissa_exp, exponent + mantissa_exp);
 
-    double estimate;
-    if (exponent + mantissa_exp < 0)
+    double estimate = mantissa;
+    int total_exp = exponent + mantissa_exp;
+    int ndx;
+    if (total_exp > 0)
     {
-        estimate = (double)mantissa / ten_to_e(-(exponent + mantissa_exp));
+        estimate *= pos_exp[(total_exp & 0xf)];
+        total_exp >>= 4;
+        ndx = 0;
+        while (total_exp)
+        {
+            if (total_exp & 1)
+            {
+                estimate *= bin_exp[ndx];
+            }
+            ++ndx;
+            total_exp >>= 1;
+        }
     }
-    else
+    else if (total_exp < 0)
     {
-        estimate = (double)mantissa * ten_to_e(exponent + mantissa_exp);
+        total_exp = -total_exp;
+        estimate /= pos_exp[(total_exp & 0xf)];
+        total_exp >>= 4;
+        ndx = 0;
+        while (total_exp)
+        {
+            if (total_exp & 1)
+            {
+                estimate /= bin_exp[ndx];
+            }
+            ++ndx;
+            total_exp >>= 1;
+        }
     }
-
-    dump_double(estimate);
 
     if (neg)
     {
         estimate = -estimate;
     }
+
+    if (!mantissa_full && (mantissa < two_to_n) && abs(exponent + mantissa_exp) < 15)
+    {
+        printf("EARLY EXIT");
+        return estimate;
+    }
+
+    //dump_double(estimate);
 
     if (!mantissa_full)
     {
@@ -488,5 +523,5 @@ double _Anvil_strtod(const char *restrict nptr, char **restrict endptr)
         _Anvil_xint_assign_64(&mant_big, mantissa);
     }
 
-    return algoritm_r(&mant_big, exponent + mantissa_exp, estimate);
+    return algoritm_r(&mant_big, exponent, estimate);
 }
