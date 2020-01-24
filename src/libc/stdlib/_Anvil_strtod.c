@@ -497,16 +497,11 @@ double _Anvil_strtod(const char *restrict nptr, char **restrict endptr)
         }
     }
 
-    if (neg)
-    {
-        estimate = -estimate;
-    }
-
     if (!mantissa_full)
     {
         if ((mantissa < two_to_n) && abs(exponent + mantissa_exp) < 15)
         {
-            //return estimate;
+            return neg ? -estimate : estimate;
         }
 
         //dump_double(estimate);
@@ -519,5 +514,7 @@ double _Anvil_strtod(const char *restrict nptr, char **restrict endptr)
         exponent += mant_big_exp;
     }
 
-    return algoritm_r(&mant_big, exponent, estimate);
+    double exact = algoritm_r(&mant_big, exponent, estimate);
+
+    return neg ? -exact : exact;
 }
