@@ -19,74 +19,106 @@ uint64_t two_to_n_minus_1 = 1LL << (n - 1);  // 2^52
 uint64_t two_to_n_plus_1 = 1LL << (n + 1);  // 2^54
 uint64_t log5_of_two = 23;  // ceil(log two_to_n / log 5)
 
+void dump_double(double z);
+
+union double_bits
+{
+    double dbl;
+    uint64_t uint;
+};
+
 uint64_t float_significand(double z)
 {
-    union
+    union double_bits bits;
+    bits.dbl = z;
+    uint64_t sig = bits.uint & 0xfffffffffffff;
+    if (((bits.uint >> 52) & 0x7ff) == 0)
     {
-        double dbl;
-        uint64_t uint;
-    } z_z;
-    z_z.dbl = z;
-    uint64_t sig = z_z.uint & 0xfffffffffffff;
+        printf("SUBNORMAL!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+        return sig;
+    }
     sig |= 0x10000000000000;
     return sig;
 }
 
 int float_exponent(double z)
 {
-    union
+    union double_bits bits;
+    bits.dbl = z;
+    int e = ((bits.uint >> 52) & 0x7ff);
+    if (e == 0)
     {
-        double dbl;
-        uint64_t uint;
-    } z_z;
-    z_z.dbl = z;
-    int e = ((z_z.uint >> 52) & 0x7ff);
+        e = 1;
+    }
     e -= 1023;
     e -= 52;
     return e;
 }
 
-double make_float(uint64_t m, int k)
-{
-    union
-    {
-        double dbl;
-        uint64_t uint;
-    } z_z;
-    z_z.uint = m;
-    z_z.uint &= ~0x0010000000000000;
-    k += 1023;
-    k += 52;
-    z_z.uint |= ((uint64_t)k << 52);
-    return z_z.dbl;
-}
-
 double prev_float(double z)
 {
-    uint64_t m = float_significand(z);
-    int k = float_exponent(z);
-    if (m == two_to_n_minus_1)
+    union double_bits bits;
+    bits.dbl = z;
+    int exp = (bits.uint >> 52) & 0x7ff;
+    uint64_t sig = bits.uint & 0xfffffffffffff;
+    if (exp == 0)
     {
-        return make_float(two_to_n - 1, k - 1);
+        // Sub-normal
+        --sig;
+    }
+    else if (exp == 0x7ff)
+    {
+        // NaN
+        
     }
     else
     {
-        return make_float(m - 1, k);
+        if (sig == 0)
+        {
+            sig = 0xfffffffffffff;
+            --exp;
+        }
+        else
+        {
+            --sig;
+        }
     }
+    bits.uint = sig;
+    bits.uint |= ((uint64_t)exp << 52);
+    return bits.dbl;
 }
 
 double next_float(double z)
 {
-    uint64_t m = float_significand(z);
-    int k = float_exponent(z);
-    if (m == two_to_n - 1)
+    union double_bits bits;
+    bits.dbl = z;
+    int exp = (bits.uint >> 52) & 0x7ff;
+    uint64_t sig = bits.uint & 0xfffffffffffff;
+    if (exp == 0)
     {
-        return make_float(two_to_n_minus_1, k + 1);
+        // Sub-normal
+        ++sig;
+    }
+    else if (exp == 0x7ff)
+    {
+        // NaN
+        
     }
     else
     {
-        return make_float(m + 1, k);
+        if (sig == 0xfffffffffffff)
+        {
+            sig = 0;
+            ++exp;
+        }
+        else
+        {
+            ++sig;
+        }
     }
+    bits.uint = sig;
+    bits.uint |= ((uint64_t)exp << 52);
+    return bits.dbl;
 }
 
 double algoritm_r(_Anvil_xint *f, int e, double z0)
@@ -114,7 +146,6 @@ double algoritm_r(_Anvil_xint *f, int e, double z0)
         //printf("m=%lld k=%d\n", m, k);
 
         _Anvil_xint_assign(&x, f);
-
         _Anvil_xint_assign_64(&y, m);
 
         if (e >= 0)
@@ -196,7 +227,7 @@ double algoritm_r(_Anvil_xint *f, int e, double z0)
         }
         else if (cmp_d2_y == 0)
         {
-//            printf("cmp_d2_y == 0\n");
+            //printf("cmp_d2_y == 0\n");
             // If m is even
             if ((m % 2) == 0)
             {
@@ -253,15 +284,10 @@ static const double bin_exp[] =
 
 void dump_double(double z)
 {
-    union
-    {
-        double dbl;
-        uint64_t uint;
-    } z_z;
-    z_z.dbl = z;
-
-    uint32_t hi = (uint64_t)z_z.uint >> 32 & 0xffffffff;
-    uint32_t lo = (uint64_t)z_z.uint & 0xffffffff;
+    union double_bits bits;
+    bits.dbl = z;
+    uint32_t hi = bits.uint >> 32 & 0xffffffff;
+    uint32_t lo = bits.uint & 0xffffffff;
     printf("%08x %08x\n", hi, lo);
 }
 
