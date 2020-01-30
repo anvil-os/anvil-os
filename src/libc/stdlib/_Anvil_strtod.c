@@ -34,7 +34,6 @@ uint64_t float_significand(double z)
     uint64_t sig = bits.uint & 0xfffffffffffff;
     if (((bits.uint >> 52) & 0x7ff) == 0)
     {
-        printf("SUBNORMAL!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
         return sig;
     }
     sig |= 0x10000000000000;
@@ -155,13 +154,13 @@ double algoritm_r(_Anvil_xint *f, int e, double z0)
                 // x = f * 10^e
                 _Anvil_xint_mul_10exp(&x, e);
                 // y = m * 2^k
-                _Anvil_xint_mul_2exp(&y, k);
+                _Anvil_xint_lshift(&y, &y, k);
             }
             else
             {
                 // x = f * 10^e * 2^-k
                 _Anvil_xint_mul_10exp(&x, e);
-                _Anvil_xint_mul_2exp(&x, -k);
+                _Anvil_xint_lshift(&x, &x, -k);
                 // y = m
                 ;
             }
@@ -173,13 +172,13 @@ double algoritm_r(_Anvil_xint *f, int e, double z0)
                 // x = f
                 ;
                 // y = m * 2^k * 10^-e
-                _Anvil_xint_mul_2exp(&y, k);
+                _Anvil_xint_lshift(&y, &y, k);
                 _Anvil_xint_mul_10exp(&y, -e);
             }
             else
             {
                 // x = f * 2^-k
-                _Anvil_xint_mul_2exp(&x, -k);
+                _Anvil_xint_lshift(&x, &x, -k);
                 // y = m * 10^-e
                 _Anvil_xint_mul_10exp(&y, -e);
             }
@@ -211,7 +210,6 @@ double algoritm_r(_Anvil_xint *f, int e, double z0)
         {
             //printf("cmp_d2_y < 0\n");
 
-            //DIGIT_T TWO_D2[NUM_DIGS];
             _Anvil_xint_mul_int(&D2, 2);
             int cmp_2d2_y = _Anvil_xint_cmp(&D2, &y);
             // D2 < y

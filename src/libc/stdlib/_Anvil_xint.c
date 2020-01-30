@@ -132,16 +132,6 @@ uint32_t _Anvil_xint_mul_10exp(_Anvil_xint *x, int e)
     return 0;
 }
 
-uint32_t _Anvil_xint_mul_2exp(_Anvil_xint *x, int e)
-{
-    // This is far too slow - make it a left shift
-    for (int j=0; j<e; ++j)
-    {
-        _Anvil_xint_mul_int(x, 2);
-    }
-    return 0;
-}
-
 uint32_t _Anvil_xint_div(_Anvil_xint *rem, _Anvil_xint *u, _Anvil_xint *v)
 {
     // Since we know that the quotient will be 0 - 9 let's use simple subtraction
