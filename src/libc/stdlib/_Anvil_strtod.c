@@ -144,68 +144,39 @@ double algoritm_r(_Anvil_xint *f, int e, double z0)
 
         //printf("m=%lld k=%d\n", m, k);
 
+        // Find x and y such that
+        // x / y = (f * 10^e) / (m * 2^k)
+        //       = f * 5^e * 2^e / m / 2^k
+        //       = f * 5^e * 2^(e-k)  / m
         _Anvil_xint_assign(&x, f);
         _Anvil_xint_assign_64(&y, m);
 
-        if (e >= 0)
+        // If e and/or e-k is negative we will move that term to the
+        // bottom of the ratio and negate it.
+        if (e > 0)
         {
-            if (k >= 0)
-            {
-                // x = f * 10^e = f * 5^e * 2^e
-                // y = m * 2^k
-                // Divide both sides by the smaller of e and k
-                _Anvil_xint_mul_5exp(&x, e);
-                if (e < k)
-                {
-                    _Anvil_xint_lshift(&y, &y, k-e);
-                }
-                else
-                {
-                    _Anvil_xint_lshift(&x, &x, e-k);
-                }
-            }
-            else
-            {
-                // x = f * 5^e * 2^e * 2^-k = f * 5^e * 2^(e-k)
-                _Anvil_xint_mul_5exp(&x, e);
-                _Anvil_xint_lshift(&x, &x, e-k);
-                // y = m
-                ;
-            }
+            _Anvil_xint_mul_5exp(&x, e);
         }
         else
         {
-            if (k >= 0)
-            {
-                // x = f
-                ;
-                // y = m * 2^k * 5^-e * 2^-e = m * 2^(k-e) * 5^-e
-                _Anvil_xint_lshift(&y, &y, k-e);
-                _Anvil_xint_mul_5exp(&y, -e);
-            }
-            else
-            {
-                // x = f * 2^-k
-                // y = m * 5^-e * 2^-e
-                // Note that e and k are both negative so -e and -k are positive
-                // Divide both sides by the smaller of -e and -k
-                _Anvil_xint_mul_5exp(&y, -e);
-                if (-e < -k)
-                {
-                    //printf("type 1 %d %d\n", e, k);
-                    _Anvil_xint_lshift(&x, &x, -k+e);
-                    //_Anvil_xint_lshift(&y, &y, -e);
-                }
-                else
-                {
-                    printf("type 2 %d %d\n", e, k);
-                    //_Anvil_xint_lshift(&x, &x, -k);
-                    _Anvil_xint_lshift(&y, &y, -e+k);
-                }
-            }
+            _Anvil_xint_mul_5exp(&y, -e);
         }
 
-        // D = x - y
+        if (e > k)
+        {
+            _Anvil_xint_lshift(&x, &x, e-k);
+        }
+        else
+        {
+            _Anvil_xint_lshift(&y, &y, k-e);
+        }
+
+        // E = m * (x-y) / y
+        // If E < 1/2
+        // y/2 < m * (x-y)
+        // y < 2 * m * (x-y)
+        //
+        // Let D = X - Y
         int D_sign = _Anvil_xint_cmp(&x, &y);
         if (D_sign > 0)
         {
