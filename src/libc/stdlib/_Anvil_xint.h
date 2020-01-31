@@ -4,7 +4,7 @@
 
 #include <stdint.h>
 
-#define NPLACES 64
+#define NPLACES 80
 
 struct _Anvil_xint_s
 {
