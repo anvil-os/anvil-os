@@ -151,16 +151,24 @@ double algoritm_r(_Anvil_xint *f, int e, double z0)
         {
             if (k >= 0)
             {
-                // x = f * 10^e
-                _Anvil_xint_mul_10exp(&x, e);
+                // x = f * 10^e = f * 5^e * 2^e
                 // y = m * 2^k
-                _Anvil_xint_lshift(&y, &y, k);
+                // Divide both sides by the smaller of e and k
+                _Anvil_xint_mul_5exp(&x, e);
+                if (e < k)
+                {
+                    _Anvil_xint_lshift(&y, &y, k-e);
+                }
+                else
+                {
+                    _Anvil_xint_lshift(&x, &x, e-k);
+                }
             }
             else
             {
-                // x = f * 10^e * 2^-k
-                _Anvil_xint_mul_10exp(&x, e);
-                _Anvil_xint_lshift(&x, &x, -k);
+                // x = f * 5^e * 2^e * 2^-k = f * 5^e * 2^(e-k)
+                _Anvil_xint_mul_5exp(&x, e);
+                _Anvil_xint_lshift(&x, &x, e-k);
                 // y = m
                 ;
             }
@@ -171,16 +179,29 @@ double algoritm_r(_Anvil_xint *f, int e, double z0)
             {
                 // x = f
                 ;
-                // y = m * 2^k * 10^-e
-                _Anvil_xint_lshift(&y, &y, k);
-                _Anvil_xint_mul_10exp(&y, -e);
+                // y = m * 2^k * 5^-e * 2^-e = m * 2^(k-e) * 5^-e
+                _Anvil_xint_lshift(&y, &y, k-e);
+                _Anvil_xint_mul_5exp(&y, -e);
             }
             else
             {
                 // x = f * 2^-k
-                _Anvil_xint_lshift(&x, &x, -k);
-                // y = m * 10^-e
-                _Anvil_xint_mul_10exp(&y, -e);
+                // y = m * 5^-e * 2^-e
+                // Note that e and k are both negative so -e and -k are positive
+                // Divide both sides by the smaller of -e and -k
+                _Anvil_xint_mul_5exp(&y, -e);
+                if (-e < -k)
+                {
+                    //printf("type 1 %d %d\n", e, k);
+                    _Anvil_xint_lshift(&x, &x, -k+e);
+                    //_Anvil_xint_lshift(&y, &y, -e);
+                }
+                else
+                {
+                    printf("type 2 %d %d\n", e, k);
+                    //_Anvil_xint_lshift(&x, &x, -k);
+                    _Anvil_xint_lshift(&y, &y, -e+k);
+                }
             }
         }
 
@@ -219,7 +240,7 @@ double algoritm_r(_Anvil_xint *f, int e, double z0)
             }
             else
             {
-                printf("Loops = %d\n", loop);
+                //printf("Loops = %d\n", loop);
                 return z;
             }
         }
@@ -235,7 +256,7 @@ double algoritm_r(_Anvil_xint *f, int e, double z0)
                 }
                 else
                 {
-                    printf("Loops = %d\n", loop);
+                    //printf("Loops = %d\n", loop);
                     return z;
                 }
             }
@@ -243,12 +264,12 @@ double algoritm_r(_Anvil_xint *f, int e, double z0)
             {
                 if (D_sign < 0)
                 {
-                    printf("Loops = %d\n", loop);
+                    //printf("Loops = %d\n", loop);
                     return prev_float(z);
                 }
                 if (D_sign > 0)
                 {
-                    printf("Loops = %d\n", loop);
+                    //printf("Loops = %d\n", loop);
                     return next_float(z);
                 }
             }
@@ -286,7 +307,7 @@ void dump_double(double z)
     bits.dbl = z;
     uint32_t hi = bits.uint >> 32 & 0xffffffff;
     uint32_t lo = bits.uint & 0xffffffff;
-    printf("%08x %08x\n", hi, lo);
+    //printf("%08x %08x\n", hi, lo);
 }
 
 double _Anvil_strtod(const char *restrict nptr, char **restrict endptr)
@@ -484,7 +505,7 @@ double _Anvil_strtod(const char *restrict nptr, char **restrict endptr)
         }
     }
 
-    printf("m=%llu e=%d m=%d b=%d e+m=%d\n", mantissa, exponent, mantissa_exp, mant_big_exp, exponent + mantissa_exp);
+    //printf("m=%llu e=%d m=%d b=%d e+m=%d\n", mantissa, exponent, mantissa_exp, mant_big_exp, exponent + mantissa_exp);
 
     double estimate = mantissa;
     int total_exp = exponent + mantissa_exp;
