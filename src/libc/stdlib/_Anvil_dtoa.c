@@ -23,6 +23,7 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
     _Anvil_xint Mminus;
     _Anvil_xint TEMP;
     uint32_t U;
+    int loop_cnt;
     
     int roundup_flag = 0;
     
@@ -69,16 +70,25 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
     }
     
     // while R < ceil(S/B)
+    loop_cnt = 0;
     while (_Anvil_xint_cmp(&R, &TEMP) < 0)
     {
         // k = k-1
         --k;
         // R = R * B
         _Anvil_xint_mul_int(&R, 10);
+        ++loop_cnt;
+    }
+
+    if (loop_cnt)
+    {
+        // Scale the M's the same as R
         // M- = M- * B
-        _Anvil_xint_mul_int(&Mminus, 10);
+        _Anvil_xint_mul_5exp(&Mminus, loop_cnt);
+        _Anvil_xint_lshift(&Mminus, &Mminus, loop_cnt);
         // M+ = M+ * B
-        _Anvil_xint_mul_int(&Mplus, 10);
+        _Anvil_xint_mul_5exp(&Mplus, loop_cnt);
+        _Anvil_xint_lshift(&Mplus, &Mplus, loop_cnt);
     }
 
     // TEMP = 2 * R + M+
@@ -90,12 +100,11 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
     _Anvil_xint_lshift(&S, &S, 1);
     ///////////////////////////////////////
 
-    // while TEMP3 >= 2S
+    // while TEMP >= 2 * S
     while (_Anvil_xint_cmp(&TEMP, &S) >= 0)
     {
         // S = S * B
         _Anvil_xint_mul_int(&S, 10);
-        // TEMP4 = 2 * S
 
         // k = k + 1
         ++k;
