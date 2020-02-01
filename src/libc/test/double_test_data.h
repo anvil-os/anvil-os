@@ -12,7 +12,7 @@ struct double_test_data_s
     uint32_t low;
 };
 
-extern struct double_test_data_s base_10_parser_data[];
-extern struct double_test_data_s gdtoa_test_data[];
+extern const struct double_test_data_s base_10_parser_data[];
+extern const struct double_test_data_s gdtoa_test_data[];
 
 #endif /* TEST_DATA_H */

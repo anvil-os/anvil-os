@@ -1,7 +1,7 @@
 
 #include "double_test_data.h"
 
-struct double_test_data_s base_10_parser_data[] =
+const struct double_test_data_s base_10_parser_data[] =
 {
     { "1234.5678", 0x40934a45, 0x6d5cfaad },
     { ".12345678e4", 0x40934a45, 0x6d5cfaad },
@@ -25,7 +25,7 @@ struct double_test_data_s base_10_parser_data[] =
 // This test data comes from the gdtoa package. There was no copyright
 // notice in the file itself but the data (in file testnos3) was posted
 // by Fred Tydeman to comp.arch.arithmetic on 26 Feb. 1996.
-struct double_test_data_s gdtoa_test_data[] =
+const struct double_test_data_s gdtoa_test_data[] =
 {
     { "9e0306", 0x7fa9a202, 0x8368022e },
     { "4e-079", 0x2fa7b6d7, 0x1d20b96c },
