@@ -21,6 +21,7 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
     _Anvil_xint S;
     _Anvil_xint Mplus;
     _Anvil_xint Mminus;
+    _Anvil_xint TEMP;
     uint32_t U;
     
     int roundup_flag = 0;
@@ -33,6 +34,7 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
     _Anvil_xint_init(&S);
     _Anvil_xint_init(&Mplus);
     _Anvil_xint_init(&Mminus);
+    _Anvil_xint_init(&TEMP);
 
     // INITIALISE THE VARIABLES
     // R = f << max(e-p, 0)
@@ -59,20 +61,15 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
 
     k = 0;
 
-    _Anvil_xint TEMP3;
-    _Anvil_xint TEMP4;
-    _Anvil_xint_init(&TEMP3);
-    _Anvil_xint_init(&TEMP4);
-
     // calculate ceil(S/B)
-    if (_Anvil_xint_div_int(&TEMP3, &S, 10))
+    if (_Anvil_xint_div_int(&TEMP, &S, 10))
     {
         // If there is a remainder round up to get ceiling
-        _Anvil_xint_add_int(&TEMP3, 1);
+        _Anvil_xint_add_int(&TEMP, 1);
     }
     
     // while R < ceil(S/B)
-    while (_Anvil_xint_cmp(&R, &TEMP3) < 0)
+    while (_Anvil_xint_cmp(&R, &TEMP) < 0)
     {
         // k = k-1
         --k;
@@ -83,21 +80,22 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
         // M+ = M+ * B
         _Anvil_xint_mul_int(&Mplus, 10);
     }
-    
-    // TEMP3 = 2 * R + M+
-    _Anvil_xint_lshift(&TEMP3, &R, 1);
-    _Anvil_xint_add(&TEMP3, &Mplus);
 
-    // TEMP4 = 2 * S
-    _Anvil_xint_lshift(&TEMP4, &S, 1);
+    // TEMP = 2 * R + M+
+    _Anvil_xint_lshift(&TEMP, &R, 1);
+    _Anvil_xint_add(&TEMP, &Mplus);
 
-    // while TEMP3 >= TEMP4
-    while (_Anvil_xint_cmp(&TEMP3, &TEMP4) >= 0)
+    ///////////////////////////////////////
+    // Temporarily set S to S * 2
+    _Anvil_xint_lshift(&S, &S, 1);
+    ///////////////////////////////////////
+
+    // while TEMP3 >= 2S
+    while (_Anvil_xint_cmp(&TEMP, &S) >= 0)
     {
         // S = S * B
         _Anvil_xint_mul_int(&S, 10);
         // TEMP4 = 2 * S
-        _Anvil_xint_lshift(&TEMP4, &S, 1);
 
         // k = k + 1
         ++k;
@@ -119,20 +117,29 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
         }
     }
 
+    ///////////////////////////////////////
+    // Restore S back to being S
+    _Anvil_xint_div_int(&S, &S, 2);
+    ///////////////////////////////////////
+
     // LOOP
     int low;
     int high;
+    
+    // From now on let R actually be 2R
+    _Anvil_xint_mul_int(&R, 2);
+    
     while (1)
     {
-        _Anvil_xint TEMP_MUL;
-
         --k;
         
         // U = floor ( R * 10 ) / S
         // R = ( R * 10 ) mod S
-        _Anvil_xint_assign(&TEMP_MUL, &R);
-        _Anvil_xint_mul_int(&TEMP_MUL, 10);
-        U = _Anvil_xint_div(&R, &TEMP_MUL, &S);
+        _Anvil_xint_mul_int(&R, 5);
+        U = _Anvil_xint_div(&R, &R, &S);
+
+        // R is 2 * R as stated above
+        _Anvil_xint_mul_int(&R, 2);
 
         // M+ = M+ * 10
         _Anvil_xint_mul_int(&Mplus, 10);
@@ -141,24 +148,22 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
         _Anvil_xint_mul_int(&Mminus, 10);
         
         // low = 2 * R < M-
-        _Anvil_xint_assign(&TEMP4, &R);
-        _Anvil_xint_mul_int(&TEMP4, 2);
-        low = _Anvil_xint_cmp(&TEMP4, &Mminus) == -1;
+        low = _Anvil_xint_cmp(&R, &Mminus) == -1;
         
         // high = 2 * R > 2 * S - M+
-        _Anvil_xint_assign(&TEMP3, &S);
-        _Anvil_xint_mul_int(&TEMP3, 2);
-        if (_Anvil_xint_cmp(&TEMP3, &Mplus) >= 0)
+        _Anvil_xint_assign(&TEMP, &S);
+        _Anvil_xint_mul_int(&TEMP, 2);
+        if (_Anvil_xint_cmp(&TEMP, &Mplus) >= 0)
         {
-            _Anvil_xint_sub(&TEMP3, &TEMP3, &Mplus);
+            _Anvil_xint_sub(&TEMP, &TEMP, &Mplus);
             // According to the Dragon logic this should be >= 1 but >= 0 works - this is the 10^23 problem
-            high = _Anvil_xint_cmp(&TEMP4, &TEMP3) >= 1;
+            high = _Anvil_xint_cmp(&R, &TEMP) >= 1;
         }
         else
         {
             high = 1;
         }
-        
+
         //printf("Done\n");
         if (low || high || k == cutoff_place)
         {
@@ -174,7 +179,7 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
             }
             else
             {
-                int cmp = _Anvil_xint_cmp(&TEMP4, &S);
+                int cmp = _Anvil_xint_cmp(&R, &S);
                 if (cmp < 0)
                 {
                     *pret_str++ = U + 0x30;
