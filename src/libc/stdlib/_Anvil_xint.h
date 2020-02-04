@@ -18,7 +18,7 @@ typedef struct _Anvil_xint_s _Anvil_xint;
 void _Anvil_xint_init(_Anvil_xint *x);
 void _Anvil_xint_delete(_Anvil_xint *x);
 int _Anvil_xint_is_zero(_Anvil_xint *x);
-int _Anvil_xint_print(_Anvil_xint *x);
+int _Anvil_xint_print(const char *label, _Anvil_xint *x);
 void _Anvil_xint_assign_64(_Anvil_xint *x, uint64_t val);
 void _Anvil_xint_assign(_Anvil_xint *x, _Anvil_xint *y);
 uint32_t _Anvil_xint_mul_int(_Anvil_xint *x, unsigned n);

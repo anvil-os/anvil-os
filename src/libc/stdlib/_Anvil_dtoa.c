@@ -53,6 +53,12 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
     // M- = 1 << max(e-p, 0)
     _Anvil_xint_assign(&Mminus, &Mplus);
 
+//    _Anvil_xint_print("R", &R);
+//    _Anvil_xint_print("S", &S);
+//    _Anvil_xint_print("M+", &Mplus);
+//    _Anvil_xint_print("M-", &Mminus);
+    //_Anvil_xint_printf(&R);
+
     // FIXUP
     if (f == (1U << (p-1)))
     {
@@ -63,14 +69,17 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
     k = 0;
 
     // calculate ceil(S/B)
+    //printf("DIV\n");
     if (_Anvil_xint_div_int(&TEMP, &S, 10))
     {
         // If there is a remainder round up to get ceiling
         _Anvil_xint_add_int(&TEMP, 1);
     }
-    
+
     // while R < ceil(S/B)
     loop_cnt = 0;
+//    _Anvil_xint_print("TEMP", &TEMP);
+//    _Anvil_xint_print("R: ", &R);
     while (_Anvil_xint_cmp(&R, &TEMP) < 0)
     {
         // k = k-1
@@ -78,6 +87,7 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
         // R = R * B
         _Anvil_xint_mul_int(&R, 10);
         ++loop_cnt;
+//        _Anvil_xint_print("R", &R);
     }
 
     if (loop_cnt)
@@ -92,19 +102,26 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
     }
 
     // TEMP = 2 * R + M+
+//    _Anvil_xint_print("R", &R);
     _Anvil_xint_lshift(&TEMP, &R, 1);
+//    _Anvil_xint_print("TEMP", &TEMP);
+//    _Anvil_xint_print("Mplus", &Mplus);
     _Anvil_xint_add(&TEMP, &Mplus);
+//    _Anvil_xint_print("2R+M+", &TEMP);
 
     ///////////////////////////////////////
     // Temporarily set S to S * 2
     _Anvil_xint_lshift(&S, &S, 1);
     ///////////////////////////////////////
 
+//    _Anvil_xint_print("S", &S);
+
     // while TEMP >= 2 * S
     while (_Anvil_xint_cmp(&TEMP, &S) >= 0)
     {
         // S = S * B
         _Anvil_xint_mul_int(&S, 10);
+//        _Anvil_xint_print("S", &S);
 
         // k = k + 1
         ++k;
@@ -135,6 +152,11 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
     int low;
     int high;
     
+//    printf("READY\n");
+//    _Anvil_xint_print("S", &S);
+//    _Anvil_xint_print("R", &R);
+//    printf("-----\n");
+
     // From now on let R actually be 2R
     _Anvil_xint_mul_int(&R, 2);
     
@@ -209,6 +231,12 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
         }
         *pret_str++ = U + 0x30;
     }
+
+    _Anvil_xint_delete(&R);
+    _Anvil_xint_delete(&S);
+    _Anvil_xint_delete(&Mplus);
+    _Anvil_xint_delete(&Mminus);
+    _Anvil_xint_delete(&TEMP);
 
     return ret_str;
 }
