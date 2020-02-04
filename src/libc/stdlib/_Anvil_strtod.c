@@ -212,6 +212,11 @@ double algoritm_r(_Anvil_xint *f, int e, double z0)
             else
             {
                 //printf("Loops = %d\n", loop);
+                _Anvil_xint_delete(&x);
+                _Anvil_xint_delete(&y);
+                _Anvil_xint_delete(&D_abs);
+                _Anvil_xint_delete(&D2);
+                _Anvil_xint_delete(&M);
                 return z;
             }
         }
@@ -228,6 +233,11 @@ double algoritm_r(_Anvil_xint *f, int e, double z0)
                 else
                 {
                     //printf("Loops = %d\n", loop);
+                    _Anvil_xint_delete(&x);
+                    _Anvil_xint_delete(&y);
+                    _Anvil_xint_delete(&D_abs);
+                    _Anvil_xint_delete(&D2);
+                    _Anvil_xint_delete(&M);
                     return z;
                 }
             }
@@ -236,11 +246,21 @@ double algoritm_r(_Anvil_xint *f, int e, double z0)
                 if (D_sign < 0)
                 {
                     //printf("Loops = %d\n", loop);
+                    _Anvil_xint_delete(&x);
+                    _Anvil_xint_delete(&y);
+                    _Anvil_xint_delete(&D_abs);
+                    _Anvil_xint_delete(&D2);
+                    _Anvil_xint_delete(&M);
                     return prev_float(z);
                 }
                 if (D_sign > 0)
                 {
                     //printf("Loops = %d\n", loop);
+                    _Anvil_xint_delete(&x);
+                    _Anvil_xint_delete(&y);
+                    _Anvil_xint_delete(&D_abs);
+                    _Anvil_xint_delete(&D2);
+                    _Anvil_xint_delete(&M);
                     return next_float(z);
                 }
             }
@@ -517,6 +537,7 @@ double _Anvil_strtod(const char *restrict nptr, char **restrict endptr)
     {
         if ((mantissa < two_to_n) && abs(exponent + mantissa_exp) < 15)
         {
+            //_Anvil_xint_delete(&mant_big);
             return neg ? -estimate : estimate;
         }
 
@@ -531,6 +552,8 @@ double _Anvil_strtod(const char *restrict nptr, char **restrict endptr)
     }
 
     double exact = algoritm_r(&mant_big, exponent, estimate);
+
+    _Anvil_xint_delete(&mant_big);
 
     return neg ? -exact : exact;
 }

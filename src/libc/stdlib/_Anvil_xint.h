@@ -4,19 +4,21 @@
 
 #include <stdint.h>
 
-#define NPLACES 80
-
 struct _Anvil_xint_s
 {
     // This stores the data in little-endian format. This will simplify
-    // growing and shrinking the array - NYI
-    uint32_t data[NPLACES];
+    // growing and shrinking the array
+    int capacity;
+    int size;
+    uint32_t *data;
 };
 
 typedef struct _Anvil_xint_s _Anvil_xint;
 
 void _Anvil_xint_init(_Anvil_xint *x);
+void _Anvil_xint_delete(_Anvil_xint *x);
 int _Anvil_xint_is_zero(_Anvil_xint *x);
+int _Anvil_xint_print(_Anvil_xint *x);
 void _Anvil_xint_assign_64(_Anvil_xint *x, uint64_t val);
 void _Anvil_xint_assign(_Anvil_xint *x, _Anvil_xint *y);
 uint32_t _Anvil_xint_mul_int(_Anvil_xint *x, unsigned n);
