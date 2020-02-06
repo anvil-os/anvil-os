@@ -6,6 +6,7 @@
 #include <ctype.h>
 #include <stdio.h>
 
+#include "_Anvil_double.h"
 #include "_Anvil_xint.h"
 
 static const int n = 53;
@@ -20,39 +21,6 @@ uint64_t two_to_n_plus_1 = 1LL << (n + 1);  // 2^54
 uint64_t log5_of_two = 23;  // ceil(log two_to_n / log 5)
 
 void dump_double(double z);
-
-union double_bits
-{
-    double dbl;
-    uint64_t uint;
-};
-
-uint64_t float_significand(double z)
-{
-    union double_bits bits;
-    bits.dbl = z;
-    uint64_t sig = bits.uint & 0xfffffffffffff;
-    if (((bits.uint >> 52) & 0x7ff) == 0)
-    {
-        return sig;
-    }
-    sig |= 0x10000000000000;
-    return sig;
-}
-
-int float_exponent(double z)
-{
-    union double_bits bits;
-    bits.dbl = z;
-    int e = ((bits.uint >> 52) & 0x7ff);
-    if (e == 0)
-    {
-        e = 1;
-    }
-    e -= 1023;
-    e -= 52;
-    return e;
-}
 
 double prev_float(double z)
 {
@@ -139,8 +107,12 @@ double algoritm_r(_Anvil_xint *f, int e, double z0)
     while (1)
     {
         //dump_double(z);
-        uint64_t m = float_significand(z);
-        int k = float_exponent(z);
+        uint64_t m;
+        int k;
+        int sign;
+
+        split_double(z, &sign, &m, &k);
+        k -= 52;
 
         //printf("m=%lld k=%d\n", m, k);
 

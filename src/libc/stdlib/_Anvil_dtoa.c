@@ -241,29 +241,12 @@ char *_Anvil_dtoa(double dd, int mode, int ndigits, int *decpt, int *sign, char 
     int cutoff_mode = 0;
     int cutoff_place = 0;
     
-    union
-    {
-        uint64_t uint;
-        double dbl;
-    } value;
-    
     if (dd == 0.0)
     {
         return "0";
     }
 
-    value.dbl = dd;
-    *sign = value.uint >> 63;
-    e = ((value.uint >> 52) & 0x7ff) - 1023;
-    f = value.uint & 0xfffffffffffff;
-    if (e == -1023)
-    {
-        ++e;
-    }
-    else
-    {
-        f |= 0x10000000000000;
-    }
+    split_double(dd, sign, &f, &e);
     p = 52;
 
     char *ret = _Anvil_dragon4(e, f, p, cutoff_mode, cutoff_place, decpt);
