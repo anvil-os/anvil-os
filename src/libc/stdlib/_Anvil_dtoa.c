@@ -16,7 +16,8 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
     _Anvil_xint TEMP;
     uint32_t U;
     int loop_cnt;
-    
+    int R5e=0, S5e=0, Mp5e=0, Mm5e=0;
+
     int roundup_flag = 0;
     
     char *pret_str = ret_str;
@@ -29,36 +30,47 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
     _Anvil_xint_init(&Mminus);
     _Anvil_xint_init(&TEMP);
 
+    // NOTE: Instead of actually modifying any of the Xints we record what
+    // needs to be done and optimise it all later
+
     // INITIALISE THE VARIABLES
     // R = f << max(e-p, 0)
-    _Anvil_xint_assign_64(&R, f);
-    _Anvil_xint_lshift(&R, &R, MAX(e-p, 0));
-
     // S = 1 << max(0, -(e-p))
-    _Anvil_xint_assign_64(&S, 1);
-    _Anvil_xint_lshift(&S, &S, MAX(0, -(e-p)));
-
     // M+ = 1 << max(e-p, 0)
-    _Anvil_xint_assign_64(&Mplus, 1);
-    _Anvil_xint_lshift(&Mplus, &Mplus, MAX(e-p, 0));
-
     // M- = 1 << max(e-p, 0)
-    _Anvil_xint_assign(&Mminus, &Mplus);
+    int R2e, S2e, Mp2e, Mm2e;
+    R2e = MAX(e-p, 0);
+    S2e = MAX(0, -(e-p));
+    Mp2e = MAX(e-p, 0);
+    Mm2e = MAX(e-p, 0);
 
-//    _Anvil_xint_print("R", &R);
-//    _Anvil_xint_print("S", &S);
-//    _Anvil_xint_print("M+", &Mplus);
-//    _Anvil_xint_print("M-", &Mminus);
-    //_Anvil_xint_printf(&R);
-
-    // FIXUP
+    // FIXUP PROCEDURE
+    // Account for unequal gaps
     if (f == (1U << (p-1)))
     {
-        // NYI
-        printf("FIXUP gap\n");
+        // M+ = M+ << 1
+        // R = R << 1
+        // S = S << 1
+        ++Mp2e;
+        ++R2e;
+        ++S2e;
     }
 
     k = 0;
+
+    _Anvil_xint_assign_64(&R, f);
+    _Anvil_xint_lshift(&R, &R, R2e);
+    _Anvil_xint_mul_5exp(&R, R5e);
+    _Anvil_xint_assign_64(&S, 1);
+    _Anvil_xint_lshift(&S, &S, S2e);
+    _Anvil_xint_mul_5exp(&S, S5e);
+    _Anvil_xint_assign_64(&Mplus, 1);
+    _Anvil_xint_lshift(&Mplus, &Mplus, Mp2e);
+    _Anvil_xint_mul_5exp(&Mplus, Mp5e);
+    _Anvil_xint_assign_64(&Mminus, 1);
+    _Anvil_xint_lshift(&Mminus, &Mminus, Mm2e);
+    _Anvil_xint_mul_5exp(&Mminus, Mm5e);
+
 
     // calculate ceil(S/B)
     //printf("DIV\n");
