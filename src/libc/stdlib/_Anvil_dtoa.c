@@ -72,80 +72,81 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
     _Anvil_xint_mul_5exp(&Mminus, Mm5e);
 
 
+    // while (R < ceil(S/B))
+    // {
+    //    --k;
+    //    R = R * 10
+    //    M- = M- * 10
+    //    M+ = M+ * 10
+    // }
     // calculate ceil(S/B)
-    //printf("DIV\n");
     if (_Anvil_xint_div_int(&TEMP, &S, 10))
     {
         // If there is a remainder round up to get ceiling
         _Anvil_xint_add_int(&TEMP, 1);
     }
-
     // while R < ceil(S/B)
     loop_cnt = 0;
-//    _Anvil_xint_print("TEMP", &TEMP);
-//    _Anvil_xint_print("R: ", &R);
     while (_Anvil_xint_cmp(&R, &TEMP) < 0)
     {
         // k = k-1
-        --k;
         // R = R * B
+        --k;
         _Anvil_xint_mul_int(&R, 10);
         ++loop_cnt;
-//        _Anvil_xint_print("R", &R);
     }
-
     if (loop_cnt)
     {
         // Scale the M's the same as R
         // M- = M- * B
+        // M+ = M+ * B
         _Anvil_xint_mul_5exp(&Mminus, loop_cnt);
         _Anvil_xint_lshift(&Mminus, &Mminus, loop_cnt);
-        // M+ = M+ * B
         _Anvil_xint_mul_5exp(&Mplus, loop_cnt);
         _Anvil_xint_lshift(&Mplus, &Mplus, loop_cnt);
     }
 
-    // TEMP = 2 * R + M+
-//    _Anvil_xint_print("R", &R);
+    // In the next part of the algorithm we need to compare
+    // 2*R + M+ with 2*S
+
+    // Let TEMP = 2 * R + M+
     _Anvil_xint_lshift(&TEMP, &R, 1);
-//    _Anvil_xint_print("TEMP", &TEMP);
-//    _Anvil_xint_print("Mplus", &Mplus);
     _Anvil_xint_add(&TEMP, &Mplus);
-//    _Anvil_xint_print("2R+M+", &TEMP);
 
     ///////////////////////////////////////
     // Temporarily set S to S * 2
     _Anvil_xint_lshift(&S, &S, 1);
     ///////////////////////////////////////
 
-//    _Anvil_xint_print("S", &S);
-
-    // while TEMP >= 2 * S
-    while (_Anvil_xint_cmp(&TEMP, &S) >= 0)
+    do
     {
-        // S = S * B
-        _Anvil_xint_mul_int(&S, 10);
-//        _Anvil_xint_print("S", &S);
-
-        // k = k + 1
-        ++k;
-        
-        switch (cutoff_mode)
+        // while TEMP >= 2 * S
+        while (_Anvil_xint_cmp(&TEMP, &S) >= 0)
         {
-            case e_normal:
-                cutoff_place = k;
-                break;
-            case e_absolute:
-                // NYI
-                //roundup_flag = cutoff_adjust(&S, &Mplus, &Mminus, cutoff_place, k);
-                break;
-            case e_relative:
-                // NYI
-                //cutoff_place += k;
-                //roundup_flag = cutoff_adjust(&S, &Mplus, &Mminus, cutoff_place, k);
-                break;
+            // S = S * B
+            // k = k + 1
+            _Anvil_xint_mul_int(&S, 10);
+            ++k;
+
+            switch (cutoff_mode)
+            {
+                case e_normal:
+                    cutoff_place = k;
+                    break;
+                case e_absolute:
+                    // NYI
+                    //roundup_flag = cutoff_adjust(&S, &Mplus, &Mminus, cutoff_place, k);
+                    break;
+                case e_relative:
+                    // NYI
+                    //cutoff_place += k;
+                    //roundup_flag = cutoff_adjust(&S, &Mplus, &Mminus, cutoff_place, k);
+                    break;
+            }
         }
-    }
+        // NOTE: !!!!
+        // We need to recalculate TEMP here if M+ changed
+    } while (_Anvil_xint_cmp(&TEMP, &S) >= 0);
 
     ///////////////////////////////////////
     // Restore S back to being S
@@ -156,11 +157,6 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
     int low;
     int high;
     
-//    printf("READY\n");
-//    _Anvil_xint_print("S", &S);
-//    _Anvil_xint_print("R", &R);
-//    printf("-----\n");
-
     // From now on let R actually be 2R
     _Anvil_xint_mul_int(&R, 2);
     
@@ -202,39 +198,41 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
         //printf("Done\n");
         if (low || high || k == cutoff_place)
         {
-            if (low && !high)
-            {
-                //printf("Low %d %d\n", low, high);
-                *pret_str++ = U + 0x30;
-            }
-            else if (!low && high)
-            {
-                //printf("High %d %d\n", low, high);
-                *pret_str++ = U + 1 + 0x30;
-            }
-            else
-            {
-                int cmp = _Anvil_xint_cmp(&R, &S);
-                if (cmp < 0)
-                {
-                    *pret_str++ = U + 0x30;
-                }
-                else if (cmp > 0)
-                {
-                    *pret_str++ = U + 1 + 0x30;
-                }
-                else
-                {
-                    *pret_str++ = U + 0x30;
-                }
-                //printf("Both %d %d %d\n", low, high, cmp);
-            }
-            *pret_str = 0;
-            *pk = k;
             break;
         }
         *pret_str++ = U + 0x30;
     }
+
+    if (low && !high)
+    {
+        //printf("Low %d %d\n", low, high);
+        *pret_str++ = U + 0x30;
+    }
+    else if (!low && high)
+    {
+        //printf("High %d %d\n", low, high);
+        *pret_str++ = U + 1 + 0x30;
+    }
+    else
+    {
+        int cmp = _Anvil_xint_cmp(&R, &S);
+        if (cmp < 0)
+        {
+            *pret_str++ = U + 0x30;
+        }
+        else if (cmp > 0)
+        {
+            *pret_str++ = U + 1 + 0x30;
+        }
+        else
+        {
+            *pret_str++ = U + 0x30;
+        }
+        //printf("Both %d %d %d\n", low, high, cmp);
+    }
+    *pret_str = 0;
+//    printf("strlen=%d\n", strlen(ret_str));
+    *pk = k;
 
     _Anvil_xint_delete(&R);
     _Anvil_xint_delete(&S);
@@ -255,13 +253,15 @@ char *_Anvil_dtoa(double dd, int mode, int ndigits, int *decpt, int *sign, char 
     
     if (dd == 0.0)
     {
-        return "0";
+        strcpy(ret_str, "0");
+        *decpt = 1;
+        return ret_str;
     }
 
     split_double(dd, sign, &f, &e);
     p = 52;
 
     char *ret = _Anvil_dragon4(e, f, p, cutoff_mode, cutoff_place, decpt);
-    //*decpt += strlen(ret);
+    *decpt += strlen(ret);
     return ret;
 }
