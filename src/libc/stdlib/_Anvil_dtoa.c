@@ -127,21 +127,39 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
             // k = k + 1
             _Anvil_xint_mul_int(&S, 10);
             ++k;
-
-            switch (cutoff_mode)
+        }
+        switch (cutoff_mode)
+        {
+            case e_normal:
+                cutoff_place = k;
+                break;
+            case e_relative:
+                // NYI
+                cutoff_place += k;
+                // no break
+            case e_absolute:
             {
-                case e_normal:
-                    cutoff_place = k;
-                    break;
-                case e_absolute:
-                    // NYI
-                    //roundup_flag = cutoff_adjust(&S, &Mplus, &Mminus, cutoff_place, k);
-                    break;
-                case e_relative:
-                    // NYI
-                    //cutoff_place += k;
-                    //roundup_flag = cutoff_adjust(&S, &Mplus, &Mminus, cutoff_place, k);
-                    break;
+                int a = cutoff_place - k;
+                printf("A=%d\n", a);
+                _Anvil_xint Y;
+                _Anvil_xint_init(&Y);
+                _Anvil_xint_div_int(&Y, &S, 2);
+                if (a > 0)
+                {
+                    for (int i=0; i<a; ++i)
+                    {
+                        _Anvil_xint_mul_int(&Y, 10);
+                    }
+                }
+                else
+                {
+                    for (int i=0; i<-a; ++i)
+                    {
+                        _Anvil_xint_div_int(&Y, &Y, 10);
+                    }
+                }
+                _Anvil_xint_delete(&Y);
+                break;
             }
         }
         // NOTE: !!!!
@@ -203,6 +221,8 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
         *pret_str++ = U + 0x30;
     }
 
+    printf("k=%d cut=%d\n", k, cutoff_place);
+
     if (low && !high)
     {
         //printf("Low %d %d\n", low, high);
@@ -248,8 +268,8 @@ char *_Anvil_dtoa(double dd, int mode, int ndigits, int *decpt, int *sign, char 
     int32_t e = 0;
     uint64_t f = 0;
     int32_t p = 0;
-    int cutoff_mode = 0;
-    int cutoff_place = 0;
+    int cutoff_mode = mode;
+    int cutoff_place = ndigits;
     
     if (dd == 0.0)
     {
