@@ -139,11 +139,13 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
                 // no break
             case e_absolute:
             {
-                int a = cutoff_place - k;
-                printf("A=%d\n", a);
+                int a = cutoff_place;
                 _Anvil_xint Y;
                 _Anvil_xint_init(&Y);
+                // Set Y to S (note S is currently 2 * S)
                 _Anvil_xint_div_int(&Y, &S, 2);
+//                _Anvil_xint_print("R", &R);
+//                _Anvil_xint_print("Y", &Y);
                 if (a > 0)
                 {
                     for (int i=0; i<a; ++i)
@@ -158,7 +160,29 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
                         _Anvil_xint_div_int(&Y, &Y, 10);
                     }
                 }
+//                _Anvil_xint_print("Y", &Y);
+//                _Anvil_xint_print("Mminus", &Mminus);
+//                _Anvil_xint_print("Mplus", &Mplus);
+                if (_Anvil_xint_cmp(&Y, &Mminus) > 0)
+                {
+                    _Anvil_xint_assign(&Mminus, &Y);
+//                    printf("Adjust M-\n");
+                }
+                if (_Anvil_xint_cmp(&Y, &Mplus) > 0)
+                {
+                    _Anvil_xint_assign(&Mplus, &Y);
+//                    printf("Adjust M+\n");
+                }
+                if (_Anvil_xint_cmp(&Y, &Mplus) == 0)
+                {
+                    roundup_flag = 1;
+                }
+//                _Anvil_xint_print("Y", &Y);
+//                _Anvil_xint_print("Mminus", &Mminus);
+//                _Anvil_xint_print("Mplus", &Mplus);
                 _Anvil_xint_delete(&Y);
+                _Anvil_xint_lshift(&TEMP, &R, 1);
+                _Anvil_xint_add(&TEMP, &Mplus);
                 break;
             }
         }
@@ -206,7 +230,14 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
         {
             _Anvil_xint_sub(&TEMP, &TEMP, &Mplus);
             // According to the Dragon logic this should be >= 1 but >= 0 works - this is the 10^23 problem
-            high = _Anvil_xint_cmp(&R, &TEMP) >= 1;
+            if (roundup_flag)
+            {
+                high = _Anvil_xint_cmp(&R, &TEMP) >= 0;
+            }
+            else
+            {
+                high = _Anvil_xint_cmp(&R, &TEMP) > 0;
+            }
         }
         else
         {
@@ -281,7 +312,7 @@ char *_Anvil_dtoa(double dd, int mode, int ndigits, int *decpt, int *sign, char 
     split_double(dd, sign, &f, &e);
     p = 52;
 
-    char *ret = _Anvil_dragon4(e, f, p, cutoff_mode, cutoff_place, decpt);
+    char *ret = _Anvil_dragon4(e, f, p, cutoff_mode, -cutoff_place, decpt);
     *decpt += strlen(ret);
     return ret;
 }
