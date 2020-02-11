@@ -105,7 +105,7 @@ uint32_t _Anvil_xint_add(_Anvil_xint *x, _Anvil_xint *y)
 {
     if (x->size < y->size)
     {
-        printf("ADD DIFF %d %d\n", x->size, y->size);
+        //printf("ADD DIFF %d %d\n", x->size, y->size);
         //_Anvil_xint_print(x);
         //_Anvil_xint_print(y);
         _Anvil_xint_resize(x, y->size);

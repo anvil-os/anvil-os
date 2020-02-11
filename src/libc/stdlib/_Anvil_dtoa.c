@@ -7,7 +7,7 @@
 
 char ret_str[100];
 
-char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cutoff_place, int *pk)
+char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cutoff_place_parm, int *pk)
 {
     _Anvil_xint R;
     _Anvil_xint S;
@@ -17,6 +17,7 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
     uint32_t U;
     int loop_cnt;
     int R5e=0, S5e=0, Mp5e=0, Mm5e=0;
+    int cutoff_place = cutoff_place_parm;
 
     int roundup_flag = 0;
     
@@ -135,11 +136,11 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
                 break;
             case e_relative:
                 // NYI
-                cutoff_place += k;
+                cutoff_place = cutoff_place_parm + k;
                 // no break
             case e_absolute:
             {
-                int a = cutoff_place;
+                int a = cutoff_place - k;
                 _Anvil_xint Y;
                 _Anvil_xint_init(&Y);
                 // Set Y to S (note S is currently 2 * S)
@@ -199,6 +200,11 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
     int low;
     int high;
     
+//    _Anvil_xint_print("R", &R);
+//    _Anvil_xint_print("S", &S);
+//    _Anvil_xint_print("M+", &Mplus);
+//    _Anvil_xint_print("M-", &Mminus);
+
     // From now on let R actually be 2R
     _Anvil_xint_mul_int(&R, 2);
     
@@ -252,7 +258,7 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
         *pret_str++ = U + 0x30;
     }
 
-    printf("k=%d cut=%d\n", k, cutoff_place);
+//    printf("k=%d cut=%d\n", k, cutoff_place);
 
     if (low && !high)
     {
@@ -314,5 +320,9 @@ char *_Anvil_dtoa(double dd, int mode, int ndigits, int *decpt, int *sign, char 
 
     char *ret = _Anvil_dragon4(e, f, p, cutoff_mode, -cutoff_place, decpt);
     *decpt += strlen(ret);
+    if ((strlen(ret) == 1) && *ret == '0')
+    {
+        *ret = 0;
+    }
     return ret;
 }
