@@ -9,9 +9,13 @@
 
 void _Anvil_xint_init(_Anvil_xint *x)
 {
-    x->capacity = 100;
+    x->capacity = 80;
     x->size = 0;
-    x->data = malloc(x->capacity * sizeof(uint32_t));
+    if ((x->data = malloc(x->capacity * sizeof(uint32_t))) == NULL)
+    {
+        printf("OOM\n");
+        while (1);
+    }
 }
 
 void _Anvil_xint_delete(_Anvil_xint *x)
@@ -207,7 +211,7 @@ uint32_t _Anvil_xint_mul(_Anvil_xint *w, _Anvil_xint *u, _Anvil_xint *v)
     // Based on Knuth's algorithm M. Knuth numbers the elements from
     // the big end so this looks slightly different, but it's the same
     // Todo: XXX: get rid of this!!!
-    uint32_t *temp = calloc(w->capacity, sizeof(uint32_t));
+    uint32_t *temp = calloc(u->size + v->size, sizeof(uint32_t));
 
     for (int j=0; j<v->size; ++j)
     {
@@ -234,14 +238,14 @@ uint32_t _Anvil_xint_mul(_Anvil_xint *w, _Anvil_xint *u, _Anvil_xint *v)
 //        }
 //    }
     int s;
-    for (s=w->capacity-1; s>=0; --s)
+    for (s=u->size + v->size-1; s>=0; --s)
     {
         if (temp[s])
         {
             break;
         }
     }
-    w->size = s + 1;
+    _Anvil_xint_resize(w, s+1);
     memcpy(w->data, temp, w->size * sizeof(uint32_t));
     free(temp);
     return 0;

@@ -5,7 +5,7 @@
 #include "_Anvil_double.h"
 #include "_Anvil_xint.h"
 
-char ret_str[100];
+char ret_str[200];
 
 char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cutoff_place_parm, int *pk)
 {
@@ -135,18 +135,31 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
                 cutoff_place = k;
                 break;
             case e_relative:
-                // NYI
-                cutoff_place = cutoff_place_parm + k;
-                // no break
             case e_absolute:
             {
-                int a = cutoff_place - k;
+                int a;
+                if (cutoff_mode == e_relative)
+                {
+                    cutoff_place = cutoff_place_parm - k;
+                    a = cutoff_place;
+                    if (a > 0)
+                    {
+                        //a = 0;
+                    }
+                }
+                else
+                {
+                    a = cutoff_place;
+                    if (a > 0)
+                    {
+                        a = 0;
+                    }
+                }
                 _Anvil_xint Y;
                 _Anvil_xint_init(&Y);
                 // Set Y to S (note S is currently 2 * S)
                 _Anvil_xint_div_int(&Y, &S, 2);
-//                _Anvil_xint_print("R", &R);
-//                _Anvil_xint_print("Y", &Y);
+                //printf("K=%d P=%d C=%d A=%d\n", k, cutoff_place_parm, cutoff_place, a);
                 if (a > 0)
                 {
                     for (int i=0; i<a; ++i)
@@ -158,7 +171,11 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
                 {
                     for (int i=0; i<-a; ++i)
                     {
-                        _Anvil_xint_div_int(&Y, &Y, 10);
+                        int rem = _Anvil_xint_div_int(&Y, &Y, 10);
+                        if (rem)
+                        {
+                            _Anvil_xint_add_int(&Y, 1);
+                        }
                     }
                 }
 //                _Anvil_xint_print("Y", &Y);
@@ -182,6 +199,8 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
 //                _Anvil_xint_print("Mminus", &Mminus);
 //                _Anvil_xint_print("Mplus", &Mplus);
                 _Anvil_xint_delete(&Y);
+                // NOTE: !!!!
+                // We need to recalculate TEMP here if M+ changed
                 _Anvil_xint_lshift(&TEMP, &R, 1);
                 _Anvil_xint_add(&TEMP, &Mplus);
                 break;
@@ -232,6 +251,7 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
         // high = 2 * R > 2 * S - M+
         _Anvil_xint_assign(&TEMP, &S);
         _Anvil_xint_mul_int(&TEMP, 2);
+
         if (_Anvil_xint_cmp(&TEMP, &Mplus) >= 0)
         {
             _Anvil_xint_sub(&TEMP, &TEMP, &Mplus);
@@ -258,7 +278,7 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
         *pret_str++ = U + 0x30;
     }
 
-//    printf("k=%d cut=%d\n", k, cutoff_place);
+//    printf("lo=%d hi=%d k=%d cut=%d r=%d\n", low, high, k, cutoff_place, roundup_flag);
 
     if (low && !high)
     {
@@ -317,7 +337,7 @@ char *_Anvil_dtoa(double dd, int mode, int ndigits, int *decpt, int *sign, char 
 
     split_double(dd, sign, &f, &e);
     p = 52;
-
+    
     char *ret = _Anvil_dragon4(e, f, p, cutoff_mode, -cutoff_place, decpt);
     *decpt += strlen(ret);
     if ((strlen(ret) == 1) && *ret == '0')
