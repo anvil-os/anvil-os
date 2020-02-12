@@ -5,7 +5,7 @@
 #include "_Anvil_double.h"
 #include "_Anvil_xint.h"
 
-char ret_str[200];
+char ret_str[100];
 
 char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cutoff_place_parm, int *pk)
 {
@@ -135,31 +135,19 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
                 cutoff_place = k;
                 break;
             case e_relative:
+                cutoff_place = cutoff_place_parm + k;
             case e_absolute:
             {
-                int a;
-                if (cutoff_mode == e_relative)
+                int a = cutoff_place - k;
+                if (cutoff_mode == e_relative && a > -1)
                 {
-                    cutoff_place = cutoff_place_parm - k;
-                    a = cutoff_place;
-                    if (a > 0)
-                    {
-                        //a = 0;
-                    }
-                }
-                else
-                {
-                    a = cutoff_place;
-                    if (a > 0)
-                    {
-                        a = 0;
-                    }
+                    a = -1;
                 }
                 _Anvil_xint Y;
                 _Anvil_xint_init(&Y);
                 // Set Y to S (note S is currently 2 * S)
                 _Anvil_xint_div_int(&Y, &S, 2);
-                //printf("K=%d P=%d C=%d A=%d\n", k, cutoff_place_parm, cutoff_place, a);
+//                printf("K=%d P=%d C=%d A=%d\n", k, cutoff_place_parm, cutoff_place, a);
                 if (a > 0)
                 {
                     for (int i=0; i<a; ++i)
@@ -206,8 +194,6 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
                 break;
             }
         }
-        // NOTE: !!!!
-        // We need to recalculate TEMP here if M+ changed
     } while (_Anvil_xint_cmp(&TEMP, &S) >= 0);
 
     ///////////////////////////////////////
