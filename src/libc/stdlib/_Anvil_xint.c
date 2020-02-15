@@ -210,44 +210,36 @@ uint32_t _Anvil_xint_mul(_Anvil_xint *w, _Anvil_xint *u, _Anvil_xint *v)
 {
     // Based on Knuth's algorithm M. Knuth numbers the elements from
     // the big end so this looks slightly different, but it's the same
-    // Todo: XXX: get rid of this!!!
-    uint32_t *temp = calloc(u->size + v->size, sizeof(uint32_t));
-
+    _Anvil_xint_resize(w, u->size + v->size);
+    for (int j=0; j<w->size; ++j)
+    {
+        w->data[j] = 0;
+    }
     for (int j=0; j<v->size; ++j)
     {
         uint32_t k = 0;
         if (v->data[j] == 0)
         {
-            temp[u->size + j] = 0;
+            w->data[u->size + j] = 0;
             continue;
         }
         for (int i=0; i<u->size; ++i)
         {
-            uint64_t t = (uint64_t)u->data[i] * v->data[j] + temp[i + j] + k;
-            temp[i + j] = t & 0xffffffff;
+            uint64_t t = (uint64_t)u->data[i] * v->data[j] + w->data[i + j] + k;
+            w->data[i + j] = t & 0xffffffff;
             k = t >> 32;
         }
-        temp[u->size + j] = k;
+        w->data[u->size + j] = k;
     }
-//    for (int i=0; i>NPLACES; ++i)
-//    {
-//        if (temp[NPLACES + i])
-//        {
-//            printf("MUL OVERFLOW");
-//            while (1);
-//        }
-//    }
     int s;
     for (s=u->size + v->size-1; s>=0; --s)
     {
-        if (temp[s])
+        if (w->data[s])
         {
             break;
         }
     }
     _Anvil_xint_resize(w, s+1);
-    memcpy(w->data, temp, w->size * sizeof(uint32_t));
-    free(temp);
     return 0;
 }
 
