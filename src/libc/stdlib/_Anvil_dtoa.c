@@ -213,6 +213,24 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
     // From now on let R actually be 2R
     _Anvil_xint_mul_int(&R, 2);
     
+    // The original Dragon4 algorithm doesn't have this test but it's
+    // certainly needed
+    if (_Anvil_xint_cmp(&R, &Mminus) == -1)
+    {
+        //printf("ALREADY LOW k=%d\n", k);
+        *pret_str = 0;
+        *pk = k;
+
+        _Anvil_xint_delete(&R);
+        _Anvil_xint_delete(&S);
+        _Anvil_xint_delete(&Mplus);
+        _Anvil_xint_delete(&Mminus);
+        _Anvil_xint_delete(&TEMP);
+
+        return ret_str;
+    }
+
+    
     while (1)
     {
         --k;
@@ -257,7 +275,7 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
         }
 
         //printf("Done\n");
-        if (low || high || k == cutoff_place)
+        if (low || high || (k == cutoff_place))
         {
             break;
         }
@@ -328,7 +346,7 @@ char *_Anvil_dtoa(double dd, int mode, int ndigits, int *decpt, int *sign, char 
     *decpt += strlen(ret);
     if ((strlen(ret) == 1) && *ret == '0')
     {
-        *ret = 0;
+//        *ret = 0;
     }
     return ret;
 }

@@ -9,7 +9,7 @@
 
 void _Anvil_xint_init(_Anvil_xint *x)
 {
-    x->capacity = 80;
+    x->capacity = 100;
     x->size = 0;
     if ((x->data = malloc(x->capacity * sizeof(uint32_t))) == NULL)
     {
