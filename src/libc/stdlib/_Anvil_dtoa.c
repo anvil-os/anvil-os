@@ -122,7 +122,6 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
     _Anvil_xint_lshift(&S, &S, 1);
     ///////////////////////////////////////
 
-    loop_cnt = 0;
     do
     {
         // while TEMP >= 2 * S
@@ -132,13 +131,8 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
             // k = k + 1
             _Anvil_xint_mul_int(&S, 10);
             ++k;
-            ++loop_cnt;
         }
-//        printf("Loop2=%d\n", loop_cnt);
-        if (loop_cnt != 1)
-        {
-//            printf("UGGGGGHHHHH!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
-        }
+
         switch (cutoff_mode)
         {
             case e_normal:
@@ -149,59 +143,59 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
                 // no break
             case e_absolute:
             {
+                // This is the Dragon4 CutoffAdjust
                 int a = cutoff_place - k;
                 if (cutoff_mode == e_relative && a > -1)
                 {
                     a = -1;
                 }
-                _Anvil_xint Y;
-                _Anvil_xint_init(&Y);
-                // Set Y to S (note S is currently 2 * S)
-                _Anvil_xint_div_int(&Y, &S, 2);
-//                printf("K=%d P=%d C=%d A=%d\n", k, cutoff_place_parm, cutoff_place, a);
+                // Let's use TEMP for Y
+                // Set it to S (note S is currently 2 * S)
+                _Anvil_xint_div_int(&TEMP, &S, 2);
                 if (a > 0)
                 {
-                    for (int i=0; i<a; ++i)
-                    {
-                        ++cc1;
-                        _Anvil_xint_mul_int(&Y, 10);
-                    }
+                    ++cc1;
+                    // Y = S * 10 ^ a
+                    _Anvil_xint_mul_5exp(&TEMP, a);
+                    _Anvil_xint_lshift(&TEMP, &TEMP, a);
                 }
                 else
                 {
+                    // Y = ceil(S / (10 ^ -a))
                     for (int i=0; i<-a; ++i)
                     {
                         ++cc2;
-                        int rem = _Anvil_xint_div_int(&Y, &Y, 10);
+                        int rem = _Anvil_xint_div_int(&TEMP, &TEMP, 10);
                         if (rem)
                         {
-                            _Anvil_xint_add_int(&Y, 1);
+                            // Add one to get the ceil
+                            _Anvil_xint_add_int(&TEMP, 1);
+                        }
+                        if (_Anvil_xint_cmp(&TEMP, &Mminus) < 0)
+                        {
+                            // We might as well break because Y (TEMP) is not
+                            // going to be used. It is only used if it's
+                            // greater then M+ or M- (note M- <= M+ so a
+                            // single test suffices)
+                            break;
                         }
                     }
                 }
-//                _Anvil_xint_print("Y", &Y);
-//                _Anvil_xint_print("Mminus", &Mminus);
-//                _Anvil_xint_print("Mplus", &Mplus);
-                if (_Anvil_xint_cmp(&Y, &Mminus) > 0)
+                // If Y is greater than M use it
+                if (_Anvil_xint_cmp(&TEMP, &Mminus) > 0)
                 {
-                    _Anvil_xint_assign(&Mminus, &Y);
-//                    printf("Adjust M-\n");
+                    _Anvil_xint_assign(&Mminus, &TEMP);
                 }
-                if (_Anvil_xint_cmp(&Y, &Mplus) > 0)
+                if (_Anvil_xint_cmp(&TEMP, &Mplus) > 0)
                 {
-                    _Anvil_xint_assign(&Mplus, &Y);
-//                    printf("Adjust M+\n");
+                    _Anvil_xint_assign(&Mplus, &TEMP);
                 }
-                if (_Anvil_xint_cmp(&Y, &Mplus) == 0)
+                if (_Anvil_xint_cmp(&TEMP, &Mplus) == 0)
                 {
                     roundup_flag = 1;
                 }
-//                _Anvil_xint_print("Y", &Y);
-//                _Anvil_xint_print("Mminus", &Mminus);
-//                _Anvil_xint_print("Mplus", &Mplus);
-                _Anvil_xint_delete(&Y);
-                // NOTE: !!!!
-                // We need to recalculate TEMP here if M+ changed
+                // We need to set TEMP back to (2 * R + M+) here for the test
+                // below
                 _Anvil_xint_lshift(&TEMP, &R, 1);
                 _Anvil_xint_add(&TEMP, &Mplus);
                 break;
