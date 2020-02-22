@@ -7,9 +7,13 @@
 
 #define MIN(a, b) ((a)<(b)?(a):(b))
 
+static void trim_zeroes(_Anvil_xint *x);
+static int get_highest_word(_Anvil_xint *x);
+static int get_highest_bit(uint32_t word);
+
 void _Anvil_xint_init(_Anvil_xint *x)
 {
-    x->capacity = 100;
+    x->capacity = 80;
     x->size = 0;
     if ((x->data = malloc(x->capacity * sizeof(uint32_t))) == NULL)
     {
@@ -189,16 +193,16 @@ uint32_t _Anvil_xint_sub(_Anvil_xint *res, _Anvil_xint *x, _Anvil_xint *y)
         //printf("DIFF SIZE\n");
         
     }
-    uint32_t k = 0;
+    int32_t k = 0;
     for (int j=0; j<y->size; ++j)
     {
-        uint64_t diff = (uint64_t)x->data[j] - y->data[j] + (k ? (uint64_t)-1 : 0);
+        int64_t diff = (uint64_t)x->data[j] - y->data[j] + k;
         res->data[j] = diff & 0xffffffff;
         k = diff >> 32;
     }
     for (int j=y->size; j<x->size; ++j)
     {
-        uint64_t diff = (uint64_t)x->data[j] + (k ? (uint64_t)-1 : 0);
+        int64_t diff = (uint64_t)x->data[j] + k;
         res->data[j] = diff & 0xffffffff;
         k = diff >> 32;
     }
@@ -375,7 +379,7 @@ uint32_t _Anvil_xint_mul_5exp(_Anvil_xint *x, int e)
     return 0;
 }
 
-uint32_t _Anvil_xint_div(_Anvil_xint *rem, _Anvil_xint *u, _Anvil_xint *v)
+uint32_t _Anvil_xint_div_small(_Anvil_xint *rem, _Anvil_xint *u, _Anvil_xint *v)
 {
     // Since we know that the quotient will be 0 - 9 let's use simple subtraction
     // and count how many
@@ -410,30 +414,14 @@ uint32_t _Anvil_xint_lshift(_Anvil_xint *y, _Anvil_xint *x, int numbits)
     int shift_bits = numbits - 32 * shift_words;
 
     // Find the highest word in x that contains data
-    int highest_word;
-    int highest_bit;
-    for (highest_word=x->size-1; highest_word>=0; --highest_word)
-    {
-        if (x->data[highest_word])
-        {
-            break;
-        }
-    }
-    uint32_t cmp_bits = 1U << 31;
-    for (highest_bit=31; highest_bit>=0; --highest_bit)
-    {
-        if (x->data[highest_word] & cmp_bits)
-        {
-            break;
-        }
-        cmp_bits >>= 1;
-    }
+    int highest_word = get_highest_word(x);
+    int highest_bit = get_highest_bit(x->data[highest_word]);
     
     if (y->size != x->size + shift_words)
     {
         _Anvil_xint_resize(y, x->size + shift_words);
     }
-    //if (shift_words)
+    if (shift_words || (y != x))
     {
         for (int j=y->size-1; j>=shift_words; --j)
         {
@@ -461,4 +449,91 @@ uint32_t _Anvil_xint_lshift(_Anvil_xint *y, _Anvil_xint *x, int numbits)
         y->data[0] = y->data[0] << shift_bits;
     }
     return 0;
+}
+
+uint32_t _Anvil_xint_rshift(_Anvil_xint *y, _Anvil_xint *x, int numbits)
+{
+    // Calculate the shift
+    int shift_words = numbits / 32;
+    int shift_bits = numbits - 32 * shift_words;
+
+    // Find the highest word in x that contains data
+    int highest_word = get_highest_word(x);
+    int highest_bit = get_highest_bit(x->data[highest_word]);
+    
+    // If all of x will be shifted out ...
+    if (x->size <= shift_words)
+    {
+        // set y to 0
+        _Anvil_xint_assign_64(y, 0);
+        return 0;
+    }
+    
+    // We need y->size to be at least x->size - shift_words in size
+    if (y->size < x->size - shift_words)
+    {
+        _Anvil_xint_resize(y, x->size - shift_words);
+    }
+    if (shift_words || (y != x))
+    {
+        // Work from right to left
+        for (int j=0; j<x->size - shift_words; ++j)
+        {
+            y->data[j] = x->data[j + shift_words];
+        }
+    }
+    if (shift_bits)
+    {
+        uint64_t tmp = 0;
+        for (int j=0; j<x->size - shift_words - 1; ++j)
+        {
+            tmp = y->data[j+1];
+            tmp <<= (32 - shift_bits);
+            tmp |= y->data[j] >> shift_bits;
+            y->data[j] = tmp & 0xffffffff;
+        }
+        y->data[x->size - shift_words - 1] >>= shift_bits;
+    }
+    
+    trim_zeroes(y);
+
+    return 0;
+}
+
+static void trim_zeroes(_Anvil_xint *x)
+{
+    for (int j=x->size-1; j>=0; --j)
+    {
+        if (x->data[j] != 0)
+        {
+            x->size = j + 1;
+            break;
+        }
+    }
+}
+
+static int get_highest_word(_Anvil_xint *x)
+{
+    for (int highest_word=x->size-1; highest_word>=0; --highest_word)
+    {
+        if (x->data[highest_word])
+        {
+            return highest_word;
+        }
+    }
+    return -1;
+}
+
+static int get_highest_bit(uint32_t word)
+{
+    uint32_t cmp_bits = 1U << 31;
+    for (int highest_bit=31; highest_bit>=0; --highest_bit)
+    {
+        if (word & cmp_bits)
+        {
+            return highest_bit;
+        }
+        cmp_bits >>= 1;
+    }
+    return -1;
 }

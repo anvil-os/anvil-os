@@ -7,7 +7,7 @@
 
 char ret_str[100];
 
-int cc1, cc2, cc3;
+int cc1, cc2, cc3, cc4;
 
 char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cutoff_place_parm, int *pk)
 {
@@ -16,6 +16,7 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
     _Anvil_xint Mplus;
     _Anvil_xint Mminus;
     _Anvil_xint TEMP;
+    //_Anvil_xint UU;
     uint32_t U;
     int loop_cnt;
     int R5e=0, S5e=0, Mp5e=0, Mm5e=0;
@@ -32,6 +33,7 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
     _Anvil_xint_init(&Mplus);
     _Anvil_xint_init(&Mminus);
     _Anvil_xint_init(&TEMP);
+    //_Anvil_xint_init(&UU);
 
     // NOTE: Instead of actually modifying any of the Xints we record what
     // needs to be done and calculate and optimise it all later
@@ -122,8 +124,19 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
     _Anvil_xint_lshift(&S, &S, 1);
     ///////////////////////////////////////
 
+    int a = 0;
     do
     {
+        if (a > 0)
+        {
+            // Pre-multiply S by 10^a
+            k += a;
+            _Anvil_xint_mul_5exp(&S, a);
+            S5e += a;
+            _Anvil_xint_lshift(&S, &S, a);
+            S2e += a;
+        }
+        loop_cnt = 0;
         // while TEMP >= 2 * S
         while (_Anvil_xint_cmp(&TEMP, &S) >= 0)
         {
@@ -131,8 +144,12 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
             // k = k + 1
             _Anvil_xint_mul_int(&S, 10);
             ++k;
+            ++S5e;
+            ++S2e;
+            ++loop_cnt;
+            ++cc1;
         }
-
+        //if (a > 0 && a != loop_cnt) printf("Loops=%d a=%d\n", loop_cnt, a);
         switch (cutoff_mode)
         {
             case e_normal:
@@ -144,17 +161,18 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
             case e_absolute:
             {
                 // This is the Dragon4 CutoffAdjust
-                int a = cutoff_place - k;
+                a = cutoff_place - k;
                 if (cutoff_mode == e_relative && a > -1)
                 {
                     a = -1;
                 }
                 // Let's use TEMP for Y
                 // Set it to S (note S is currently 2 * S)
-                _Anvil_xint_div_int(&TEMP, &S, 2);
+                _Anvil_xint_rshift(&TEMP, &S, 1);
+//                printf("K=%d P=%d C=%d A=%d\n", k, cutoff_place_parm, cutoff_place, a);
                 if (a > 0)
                 {
-                    ++cc1;
+                    ++cc2;
                     // Y = S * 10 ^ a
                     _Anvil_xint_mul_5exp(&TEMP, a);
                     _Anvil_xint_lshift(&TEMP, &TEMP, a);
@@ -162,10 +180,27 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
                 else
                 {
                     // Y = ceil(S / (10 ^ -a))
+                    _Anvil_xint_rshift(&TEMP, &TEMP, -a);
+                    if (_Anvil_xint_is_zero(&TEMP))
+                    {
+                        _Anvil_xint_assign_64(&TEMP, 1);
+                    }
+                    else
+                    {
                     for (int i=0; i<-a; ++i)
                     {
-                        ++cc2;
-                        int rem = _Anvil_xint_div_int(&TEMP, &TEMP, 10);
+                            if (S5e && S2e)
+                            {
+                                //printf("S5e=%d S2e=%d\n", S5e, S2e);
+                            }
+                            ++cc3;
+    //                        _Anvil_xint_rshift(&TEMP, &TEMP, 1);
+                            int rem = _Anvil_xint_div_int(&TEMP, &TEMP, 5);
+                            if (_Anvil_xint_is_zero(&TEMP))
+                            {
+                                _Anvil_xint_assign_64(&TEMP, 1);
+                                break;
+                            }
                         if (rem)
                         {
                             // Add one to get the ceil
@@ -180,6 +215,7 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
                             break;
                         }
                     }
+                }
                 }
                 // If Y is greater than M use it
                 if (_Anvil_xint_cmp(&TEMP, &Mminus) > 0)
@@ -201,11 +237,15 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
                 break;
             }
         }
+//        if (_Anvil_xint_cmp(&TEMP, &S) >= 0)
+//        {
+//            //printf("We're looping a=%d\n", a);
+//        }
     } while (_Anvil_xint_cmp(&TEMP, &S) >= 0);
 
     ///////////////////////////////////////
     // Restore S back to being S
-    _Anvil_xint_div_int(&S, &S, 2);
+    _Anvil_xint_rshift(&S, &S, 1);
     ///////////////////////////////////////
 
     // LOOP
@@ -221,17 +261,32 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
     {
         while (1)
         {
-            ++cc3;
+            ++cc4;
             --k;
             
             // U = floor ( R * 10 ) / S
             // R = ( R * 10 ) mod S
             _Anvil_xint_mul_int(&R, 5);
-            U = _Anvil_xint_div(&R, &R, &S);
+            
+#if 0
+//            _Anvil_xint_print("R", &R);
+//            _Anvil_xint_print("S", &S);
+
+            _Anvil_xint_div(&UU, &TEMP, &R, &S);
+            U = UU.data[0];
+
+            _Anvil_xint_lshift(&R, &TEMP, 1);
+
+//            _Anvil_xint_print("R", &R);
+//            _Anvil_xint_print("S", &S);
+//            _Anvil_xint_print("U", &UU);
+//            _Anvil_xint_print("TEMP", &TEMP);
+#else
+            U = _Anvil_xint_div_small(&R, &R, &S);
 
             // R is 2 * R as stated above
             _Anvil_xint_lshift(&R, &R, 1);
-
+#endif
             // M+ = M+ * 10
             _Anvil_xint_mul_int(&Mplus, 10);
             
@@ -323,6 +378,9 @@ char *_Anvil_dtoa(double dd, int mode, int ndigits, int *decpt, int *sign, char 
         return ret_str;
     }
 
+    //
+    // Our double is f * 2^(e-p)
+    //
     split_double(dd, sign, &f, &e);
     p = 52;
 
