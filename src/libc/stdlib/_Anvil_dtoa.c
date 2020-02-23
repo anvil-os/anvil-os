@@ -7,7 +7,8 @@
 
 char ret_str[100];
 
-int cc1, cc2, cc3, cc4;
+int cc0, cc1, cc2, cc3, cc4;
+int aa1, aa2;
 
 char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cutoff_place_parm, int *pk)
 {
@@ -61,7 +62,82 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
         ++S2e;
     }
 
-    k = 0;
+    // Dragon4 has a pair of loops, one executed while R < ceil(S/10)
+    // and the second while R + M+/2 >= S. The result of these is to give
+    // S/10 <= R < S.
+    //
+    // while R < ceil(S/10)
+    // {
+    //    --k;
+    //    R = R * 10
+    //    M- = M- * 10
+    //    M+ = M+ * 10
+    // }
+    // while (R + M+/2 >= S)
+    // {
+    //    S = S * 10
+    //    ++k
+    // }
+    //
+    // David M Gay in "Correctly Rounded Binary-Decimal and Decimal Binary
+    // Conversion" suggests that if we calculate an approximation of the log10
+    // of the input number we can speed this up.
+    // As long as we err in the correct direction we can remove the need for
+    // the first loop and cause the 2nd loop to be executed either 0 or 1 times
+    // To that end we keep the 2nd loop inside as below.
+    //
+    uint64_t f1 = f;
+    while ((f1 & 0x10000000000000) == 0)
+    {
+        f1 <<= 1;
+        --e;
+    }
+    int log10 = (e * 30103 / 100000 + 1);
+    if (log10 < 0)
+    {
+        --log10;
+    }
+
+    k = log10;
+    if (k < 0)
+    {
+        R2e -= k;
+        R5e -= k;
+        Mp2e -= k;
+        Mp5e -= k;
+        Mm2e -= k;
+        Mm5e -= k;
+    }
+    else
+    {
+        S5e += k;
+        S2e += k;
+    }
+
+//    printf("f=%lld e=%d log=%d\n", f, e, log10);
+    
+    // Remove common factors now
+    int lowest = 10000;
+    if (R2e < lowest) lowest = R2e;
+    if (S2e < lowest) lowest = S2e;
+    if (Mp2e < lowest) lowest = Mp2e;
+    if (Mm2e < lowest) lowest = Mm2e;
+    R2e -= lowest;
+    S2e -= lowest;
+    Mp2e -= lowest;
+    Mm2e -= lowest;
+    lowest = 10000;
+    if (R5e < lowest) lowest = R5e;
+    if (S5e < lowest) lowest = S5e;
+    if (Mp5e < lowest) lowest = Mp5e;
+    if (Mm5e < lowest) lowest = Mm5e;
+    R5e -= lowest;
+    S5e -= lowest;
+    Mp5e -= lowest;
+    Mm5e -= lowest;
+    
+//    printf("2: %d %d %d %d\n", R2e, S2e, Mp2e, Mm2e);
+//    printf("5: %d %d %d %d\n", R5e, S5e, Mp5e, Mm5e);
 
     _Anvil_xint_assign_64(&R, f);
     _Anvil_xint_lshift(&R, &R, R2e);
@@ -96,20 +172,22 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
     {
         // k = k-1
         // R = R * B
-        --k;
-        _Anvil_xint_mul_int(&R, 10);
-        ++loop_cnt;
-    }
-    if (loop_cnt)
-    {
-        // Scale the M's the same as R
         // M- = M- * B
         // M+ = M+ * B
-        _Anvil_xint_mul_5exp(&Mminus, loop_cnt);
-        _Anvil_xint_lshift(&Mminus, &Mminus, loop_cnt);
-        _Anvil_xint_mul_5exp(&Mplus, loop_cnt);
-        _Anvil_xint_lshift(&Mplus, &Mplus, loop_cnt);
+        --k;
+        _Anvil_xint_mul_int(&R, 10);
+        ++R5e;
+        ++R2e;
+        _Anvil_xint_mul_int(&Mminus, 10);
+        ++Mm5e;
+        ++Mm2e;
+        _Anvil_xint_mul_int(&Mplus, 10);
+        ++Mp5e;
+        ++Mp2e;
+        ++loop_cnt;
+        ++cc0;
     }
+
     //printf("Loop1=%d\n", loop_cnt);
 
     // In the next part of the algorithm we need to compare
@@ -149,6 +227,7 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
             ++loop_cnt;
             ++cc1;
         }
+//        if (loop_cnt) printf("Loop2 %d\n", loop_cnt);
         //if (a > 0 && a != loop_cnt) printf("Loops=%d a=%d\n", loop_cnt, a);
         switch (cutoff_mode)
         {

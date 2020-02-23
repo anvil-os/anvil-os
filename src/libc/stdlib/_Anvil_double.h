@@ -15,6 +15,7 @@ union double_bits
 {
     double dbl;
     uint64_t uint;
+    uint32_t uint32[2];
 };
 
 static void split_double(double dd, int *sign, uint64_t *f, int *e)
