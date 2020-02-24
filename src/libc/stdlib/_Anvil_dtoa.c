@@ -7,7 +7,7 @@
 
 char ret_str[100];
 
-int cc0, cc1, cc2, cc3, cc4;
+int cc0, cc1, cc2, cc3, cc4, cc5;
 int aa1, aa2;
 
 char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cutoff_place_parm, int *pk)
@@ -256,45 +256,16 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
                     _Anvil_xint_mul_5exp(&TEMP, a);
                     _Anvil_xint_lshift(&TEMP, &TEMP, a);
                 }
-                else
+                else if (a < 0)
                 {
+                    ++cc3;
                     // Y = ceil(S / (10 ^ -a))
                     _Anvil_xint_rshift(&TEMP, &TEMP, -a);
+                    _Anvil_xint_div_5exp(&TEMP, -a);
                     if (_Anvil_xint_is_zero(&TEMP))
                     {
                         _Anvil_xint_assign_64(&TEMP, 1);
                     }
-                    else
-                    {
-                    for (int i=0; i<-a; ++i)
-                    {
-                            if (S5e && S2e)
-                            {
-                                //printf("S5e=%d S2e=%d\n", S5e, S2e);
-                            }
-                            ++cc3;
-    //                        _Anvil_xint_rshift(&TEMP, &TEMP, 1);
-                            int rem = _Anvil_xint_div_int(&TEMP, &TEMP, 5);
-                            if (_Anvil_xint_is_zero(&TEMP))
-                            {
-                                _Anvil_xint_assign_64(&TEMP, 1);
-                                break;
-                            }
-                        if (rem)
-                        {
-                            // Add one to get the ceil
-                            _Anvil_xint_add_int(&TEMP, 1);
-                        }
-                        if (_Anvil_xint_cmp(&TEMP, &Mminus) < 0)
-                        {
-                            // We might as well break because Y (TEMP) is not
-                            // going to be used. It is only used if it's
-                            // greater then M+ or M- (note M- <= M+ so a
-                            // single test suffices)
-                            break;
-                        }
-                    }
-                }
                 }
                 // If Y is greater than M use it
                 if (_Anvil_xint_cmp(&TEMP, &Mminus) > 0)
@@ -444,6 +415,8 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
 
 char *_Anvil_dtoa(double dd, int mode, int ndigits, int *decpt, int *sign, char **rve)
 {
+    ++cc5;
+
     int32_t e = 0;
     uint64_t f = 0;
     int32_t p = 0;

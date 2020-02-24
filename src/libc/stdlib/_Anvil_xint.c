@@ -6,6 +6,7 @@
 #include <stdio.h>
 
 #define MIN(a, b) ((a)<(b)?(a):(b))
+#define B 0x100000000ULL
 
 static void trim_zeroes(_Anvil_xint *x);
 static int get_highest_word(_Anvil_xint *x);
@@ -379,6 +380,40 @@ uint32_t _Anvil_xint_mul_5exp(_Anvil_xint *x, int e)
     return 0;
 }
 
+uint32_t _Anvil_xint_div_5exp(_Anvil_xint *x, int e)
+{
+    _Anvil_xint tmp;
+    _Anvil_xint_init(&tmp);
+    _Anvil_xint tmp2;
+    _Anvil_xint_init(&tmp2);
+    _Anvil_xint tmp3;
+    _Anvil_xint_init(&tmp3);
+    _Anvil_xint_div_int(&tmp, x, small_pow_5[e & 0x7]);
+    _Anvil_xint_assign(x, &tmp);
+    e >>= 3;
+    int ndx = 0;
+    while (e)
+    {
+        if (e & 1)
+        {
+            if (ndx >= sizeof(big_pow_5) / sizeof(big_pow_5[0]))
+            {
+                printf("TOO BIG %d\n", ndx);
+                while (1);
+            }
+            _Anvil_xint_assign(&tmp3, &big_pow_5[ndx]);
+            _Anvil_xint_div(&tmp, &tmp2, x, &tmp3);
+            _Anvil_xint_assign(x, &tmp);
+        }
+        ++ndx;
+        e >>= 1;
+    }
+    _Anvil_xint_delete(&tmp);
+    _Anvil_xint_delete(&tmp2);
+    _Anvil_xint_delete(&tmp3);
+    return 0;
+}
+
 uint32_t _Anvil_xint_div_small(_Anvil_xint *rem, _Anvil_xint *u, _Anvil_xint *v)
 {
     // Since we know that the quotient will be 0 - 9 let's use simple subtraction
@@ -391,6 +426,106 @@ uint32_t _Anvil_xint_div_small(_Anvil_xint *rem, _Anvil_xint *u, _Anvil_xint *v)
         ++quot;
     }
     return quot;
+}
+
+uint32_t _Anvil_xint_div(_Anvil_xint *q, _Anvil_xint *r, _Anvil_xint *u, _Anvil_xint *v)
+{
+    // As per Knuth's later revision with little endian indices
+    // u[0] to u[m+n-1]
+    // v[0] to v[n-1]
+    // q[0] to q[m]
+    // r[0] to r[n-1]
+    
+    if (v->size == 1)
+    {
+        // Use the algorithm from exercise 16
+        uint32_t a = _Anvil_xint_div_int(q, u, v->data[0]);
+        _Anvil_xint_assign_64(r, a);
+        trim_zeroes(q);
+        trim_zeroes(r);
+        return 0;
+    }
+
+    // D1. [Normalise.]
+    // Use Knuth's suggestion of a power of 2 for d. For v1 to be > b/2
+    // we need v1 to have its top bit set.
+    
+    // Find the highest bit in the highest word in v that contains data
+    int highest_word = get_highest_word(v);
+    int highest_bit = get_highest_bit(v->data[highest_word]);
+    
+    // Move both u and v to the left so that the top bit of V is set
+    // Note that we use r for normalised u from now on
+    _Anvil_xint_lshift(r, u, 31 - highest_bit);
+    _Anvil_xint_lshift(v, v, 31 - highest_bit);
+
+    int n = v->size;
+    int m = r->size - n + 1;
+
+    _Anvil_xint_assign_64(q, 0);
+    _Anvil_xint_resize(q, m + n);
+    _Anvil_xint_resize(r, m + n + 1);
+    
+    // D2. [Initialise j.]
+    for (int j=m; j>=0; --j)
+    {
+        // D3. [Calculate q^]
+        uint64_t qhat = (r->data[j+n] * B + r->data[j+n-1]) / v->data[n-1];
+        uint64_t rhat = (r->data[j+n] * B + r->data[j+n-1]) % v->data[n-1];
+        while (qhat >= B || (qhat * v->data[n-2] > B * rhat + r->data[j+n-2]))
+        {
+            --qhat;
+            rhat += v->data[n-1];
+            if (rhat >= B)
+            {
+                break;
+            }
+        }
+
+        // D4. [Multiply and subtract.]
+        // Replace u(j+n to j) by u(j+n to j) - qhat * v(n-1 to 0)
+        // Since r is u we have r = r - qhat * v
+        int64_t k = 0;
+        for (int i=0; i<n; ++i)
+        {
+            int64_t prod_diff = r->data[j+i] - qhat * v->data[i] + k;
+            r->data[i+j] = prod_diff & 0xffffffff;
+            k = prod_diff >> 32;
+        }
+        int64_t prod_diff = r->data[j+n] + k;
+        r->data[j+n] = prod_diff & 0xffffffff;
+
+        // Note that we know qhat < B
+        q->data[j] = (uint32_t)qhat;
+        
+        // D5. Test remainder
+        if (prod_diff < 0)
+        {
+            // D6. [Add back.]
+            // Decrease Qj by one
+            --q->data[j];
+            // Add V(n-1 to 0) to U(n+j to j)
+            int64_t k = 0;
+            for (int i=0; i<n; i++)
+            {
+                uint64_t sum = (uint64_t)r->data[j+i] + v->data[i] + k;
+                r->data[j+i] = sum & 0xffffffff;
+                k = sum >> 32;
+            }
+            r->data[j+n] = (r->data[j+n] + k) & 0xffffffff;
+        }
+        // D7. Loop on j
+    }
+
+    // D8. Un-normalise
+    _Anvil_xint_rshift(v, v, 31 - highest_bit);
+    _Anvil_xint_rshift(r, r, 31 - highest_bit);
+
+    trim_zeroes(q);
+    trim_zeroes(r);
+    trim_zeroes(v);
+    
+    return 0;
 }
 
 uint32_t _Anvil_xint_div_int(_Anvil_xint *quot, _Anvil_xint *x, uint32_t v)
