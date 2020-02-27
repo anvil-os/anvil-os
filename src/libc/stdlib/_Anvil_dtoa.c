@@ -17,7 +17,7 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
     _Anvil_xint Mplus;
     _Anvil_xint Mminus;
     _Anvil_xint TEMP;
-    //_Anvil_xint UU;
+
     uint32_t U;
     int loop_cnt;
     int R5e=0, S5e=0, Mp5e=0, Mm5e=0;
@@ -34,7 +34,6 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
     _Anvil_xint_init(&Mplus);
     _Anvil_xint_init(&Mminus);
     _Anvil_xint_init(&TEMP);
-    //_Anvil_xint_init(&UU);
 
     // NOTE: Instead of actually modifying any of the Xints we record what
     // needs to be done and calculate and optimise it all later
@@ -251,17 +250,34 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
 //                printf("K=%d P=%d C=%d A=%d\n", k, cutoff_place_parm, cutoff_place, a);
                 if (a > 0)
                 {
-                    ++cc2;
                     // Y = S * 10 ^ a
                     _Anvil_xint_mul_5exp(&TEMP, a);
                     _Anvil_xint_lshift(&TEMP, &TEMP, a);
                 }
                 else if (a < 0)
                 {
-                    ++cc3;
                     // Y = ceil(S / (10 ^ -a))
-                    _Anvil_xint_rshift(&TEMP, &TEMP, -a);
-                    _Anvil_xint_div_5exp(&TEMP, -a);
+                    int a5 = S5e + a;
+                    int a2 = S2e + a;
+                    _Anvil_xint_assign_64(&TEMP, 1);
+                    if (a5 > 0 || a2 > 0)
+                    {
+                        if (a5 < 0)
+                        {
+//                            note = 1;
+//                            printf("a=%d: a5=%d a2=%d S5e=%d S2e=%d Mp5e=%d Mp2e=%d\n", a, a5, a2, S5e, S2e, Mp5e, Mp2e);
+                        }
+                        if (a5 > a2)
+                        {
+                            _Anvil_xint_mul_5exp(&TEMP, a5);
+                            _Anvil_xint_lshift(&TEMP, &TEMP, a2);
+                        }
+                        else
+                        {
+                            _Anvil_xint_lshift(&TEMP, &TEMP, a2);
+                            _Anvil_xint_mul_5exp(&TEMP, a5);
+                        }
+                    }
                     if (_Anvil_xint_is_zero(&TEMP))
                     {
                         _Anvil_xint_assign_64(&TEMP, 1);
@@ -318,25 +334,11 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
             // R = ( R * 10 ) mod S
             _Anvil_xint_mul_int(&R, 5);
             
-#if 0
-//            _Anvil_xint_print("R", &R);
-//            _Anvil_xint_print("S", &S);
-
-            _Anvil_xint_div(&UU, &TEMP, &R, &S);
-            U = UU.data[0];
-
-            _Anvil_xint_lshift(&R, &TEMP, 1);
-
-//            _Anvil_xint_print("R", &R);
-//            _Anvil_xint_print("S", &S);
-//            _Anvil_xint_print("U", &UU);
-//            _Anvil_xint_print("TEMP", &TEMP);
-#else
             U = _Anvil_xint_div_small(&R, &R, &S);
 
             // R is 2 * R as stated above
             _Anvil_xint_lshift(&R, &R, 1);
-#endif
+
             // M+ = M+ * 10
             _Anvil_xint_mul_int(&Mplus, 10);
             

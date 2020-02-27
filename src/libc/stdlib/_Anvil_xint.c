@@ -6,6 +6,7 @@
 #include <stdio.h>
 
 #define MIN(a, b) ((a)<(b)?(a):(b))
+#define MAX(a, b) ((a)>(b)?(a):(b))
 #define B 0x100000000ULL
 
 static void trim_zeroes(_Anvil_xint *x);
@@ -355,6 +356,11 @@ uint32_t _Anvil_xint_mul_5exp(_Anvil_xint *x, int e)
 //        _Anvil_xint_mul_int(&XX, 5);
 //    }
 
+    if (e < 0)
+    {
+        //printf("Doing DIV\n");
+        return _Anvil_xint_div_5exp(x, -e);
+    }
     _Anvil_xint tmp;
     _Anvil_xint_init(&tmp);
     _Anvil_xint_mul_int(x, small_pow_5[e & 0x7]);
@@ -416,9 +422,92 @@ uint32_t _Anvil_xint_div_5exp(_Anvil_xint *x, int e)
 
 uint32_t _Anvil_xint_div_small(_Anvil_xint *rem, _Anvil_xint *u, _Anvil_xint *v)
 {
-    // Since we know that the quotient will be 0 - 9 let's use simple subtraction
-    // and count how many
-    uint32_t quot = 0;
+    // Find the highest bit in the highest word in v that contains data
+    int highest_word = get_highest_word(v);
+    int highest_bit = get_highest_bit(v->data[highest_word]);
+    
+    // Move both u and v to the left so that the top bit of V is set
+    uint32_t denom;
+    uint64_t numer;
+    
+    if (highest_word > 0)
+    {
+        denom = v->data[highest_word];
+        denom <<= 31 - highest_bit;
+        if (highest_bit + 1 < 32)
+        {
+            denom |= v->data[highest_word - 1] >> (highest_bit + 1);
+        }
+        ++denom;
+        
+        if (highest_word == u->size - 2)
+        {
+            // U is longer than V
+            //  U U U
+            //    V V
+            numer = u->data[u->size - 1];
+            numer <<= 32;
+            numer |= u->data[u->size - 2];
+            numer <<= 31 - highest_bit;
+            if (highest_bit + 1 < 32)
+            {
+                numer |= u->data[u->size - 3] >> (highest_bit + 1);
+            }
+        }
+        else if (highest_word == u->size - 1)
+        {
+            // U and V are equal length
+            //    U U
+            //    V V
+            numer = u->data[u->size - 1];
+            numer <<= 31 - highest_bit;
+            if (highest_bit + 1 < 32)
+            {
+                numer |= u->data[u->size - 2] >> (highest_bit + 1);
+            }
+        }
+        else if (highest_word == u->size)
+        {
+            // U is shorter than V
+            //    U
+            //  V V
+            numer = 0;
+            numer <<= 31 - highest_bit;
+            if (highest_bit + 1 < 32)
+            {
+                numer |= u->data[u->size - 1] >> (highest_bit + 1);
+            }
+        }
+        else
+        {
+            numer = 0;
+        }
+    }
+    else
+    {
+        denom = v->data[0] + 1;
+        numer = u->data[0];
+    }
+
+    uint64_t quot = numer / denom;
+
+    if (u->size < v->size)
+    {
+        _Anvil_xint_resize(u, v->size);
+    }
+    else if (u->size > v->size)
+    {
+        _Anvil_xint_resize(v, u->size);
+    }
+
+    int64_t k = 0;
+    for (int i=0; i<u->size; ++i)
+    {
+        int64_t prod_diff = u->data[i] - quot * v->data[i] + k;
+        u->data[i] = prod_diff & 0xffffffff;
+        k = prod_diff >> 32;
+    }
+
     _Anvil_xint_assign(rem, u);
     while (_Anvil_xint_cmp(rem, v) >= 0)
     {
@@ -544,6 +633,11 @@ uint32_t _Anvil_xint_div_int(_Anvil_xint *quot, _Anvil_xint *x, uint32_t v)
 
 uint32_t _Anvil_xint_lshift(_Anvil_xint *y, _Anvil_xint *x, int numbits)
 {
+    if (numbits < 0)
+    {
+        //printf("Doing RSHIFT\n");
+        return _Anvil_xint_rshift(y, x, -numbits);
+    }
     // Calculate the shift
     int shift_words = numbits / 32;
     int shift_bits = numbits - 32 * shift_words;
@@ -644,6 +738,11 @@ static void trim_zeroes(_Anvil_xint *x)
             x->size = j + 1;
             break;
         }
+        if (j == 0)
+        {
+            x->size = 0;
+            break;
+        }
     }
 }
 
@@ -661,14 +760,9 @@ static int get_highest_word(_Anvil_xint *x)
 
 static int get_highest_bit(uint32_t word)
 {
-    uint32_t cmp_bits = 1U << 31;
-    for (int highest_bit=31; highest_bit>=0; --highest_bit)
+    if (word)
     {
-        if (word & cmp_bits)
-        {
-            return highest_bit;
-        }
-        cmp_bits >>= 1;
+        return 31 - __builtin_clz(word);
     }
     return -1;
 }
