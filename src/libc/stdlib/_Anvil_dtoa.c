@@ -349,8 +349,7 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
             low = _Anvil_xint_cmp(&R, &Mminus) == -1;
             
             // high = 2 * R > 2 * S - M+
-            _Anvil_xint_assign(&TEMP, &S);
-            _Anvil_xint_lshift(&TEMP, &TEMP, 1);
+            _Anvil_xint_lshift(&TEMP, &S, 1);
 
             if (_Anvil_xint_cmp(&TEMP, &Mplus) >= 0)
             {

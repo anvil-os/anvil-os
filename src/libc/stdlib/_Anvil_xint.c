@@ -108,6 +108,7 @@ uint32_t _Anvil_xint_mul_int(_Anvil_xint *x, unsigned n)
         printf("MUL OVERFLOW\n");
         while (1);
     }
+    trim_zeroes(x);
     return k;
 }
 
@@ -140,6 +141,7 @@ uint32_t _Anvil_xint_add(_Anvil_xint *x, _Anvil_xint *y)
         x->data[x->size - 1] = k;
         k = 0;
     }
+    trim_zeroes(x);
     return k;
 }
 
@@ -158,6 +160,7 @@ uint32_t _Anvil_xint_add_int(_Anvil_xint *x, unsigned n)
         ++x->size;
         k = 0;
     }
+    trim_zeroes(x);
     return k;
 }
 
@@ -209,6 +212,9 @@ uint32_t _Anvil_xint_sub(_Anvil_xint *res, _Anvil_xint *x, _Anvil_xint *y)
         k = diff >> 32;
     }
     res->size = x->size;
+    
+    trim_zeroes(res);
+
     return k;
 }
 
@@ -514,6 +520,11 @@ uint32_t _Anvil_xint_div_small(_Anvil_xint *rem, _Anvil_xint *u, _Anvil_xint *v)
         _Anvil_xint_sub(rem, rem, v);
         ++quot;
     }
+//    _Anvil_xint_print("U", u);
+//    _Anvil_xint_print("V", v);
+    trim_zeroes(rem);
+    trim_zeroes(u);
+    trim_zeroes(v);
     return quot;
 }
 
@@ -628,6 +639,7 @@ uint32_t _Anvil_xint_div_int(_Anvil_xint *quot, _Anvil_xint *x, uint32_t v)
         quot->data[j] = (uint32_t)(tmp / v);
         r = tmp % v;
     }
+    trim_zeroes(quot);
     return r;
 }
 
@@ -667,16 +679,15 @@ uint32_t _Anvil_xint_lshift(_Anvil_xint *y, _Anvil_xint *x, int numbits)
         {
             _Anvil_xint_resize(y, y->size + 1);
         }
-        uint64_t tmp = 0;
         for (int j=y->size-1; j>0; --j)
         {
-            tmp = y->data[j - 1];
-            tmp <<= shift_bits;
-            y->data[j] = y->data[j] << shift_bits;
-            y->data[j] |= tmp >> 32;
+            y->data[j] = (y->data[j] << shift_bits) | (y->data[j - 1] >> (32 - shift_bits));
         }
         y->data[0] = y->data[0] << shift_bits;
     }
+
+    trim_zeroes(y);
+
     return 0;
 }
 
