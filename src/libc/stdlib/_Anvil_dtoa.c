@@ -432,18 +432,18 @@ char *_Anvil_dtoa(double dd, int mode, int ndigits, int *decpt, int *sign, char 
     int cutoff_mode = mode;
     int cutoff_place = ndigits;
     
-    if (dd == 0.0)
-    {
-        strcpy(ret_str, "0");
-        *decpt = 1;
-        return ret_str;
-    }
-
     //
     // Our double is f * 2^(e-p)
     //
     split_double(dd, sign, &f, &e);
     p = 52;
+
+    if (f == 0)
+    {
+        strcpy(ret_str, "0");
+        *decpt = 1;
+        return ret_str;
+    }
 
     char *ret = _Anvil_dragon4(e, f, p, cutoff_mode, -cutoff_place, decpt);
     *decpt += strlen(ret);
