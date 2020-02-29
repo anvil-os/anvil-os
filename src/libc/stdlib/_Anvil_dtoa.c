@@ -325,6 +325,14 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
     // certainly needed
     if (_Anvil_xint_cmp(&R, &Mminus) >= 0)
     {
+        // The 'div_small' algorithm requires the denominator to have the top
+        // bit in its top word set. Scale every thing to make this true
+        int hbit = _Anvil_xint_highest_bit(&S) % 32;
+        _Anvil_xint_lshift(&R, &R, 31-hbit);
+        _Anvil_xint_lshift(&S, &S, 31-hbit);
+        _Anvil_xint_lshift(&Mplus, &Mplus, 31-hbit);
+        _Anvil_xint_lshift(&Mminus, &Mminus, 31-hbit);
+
         while (1)
         {
             ++cc4;
@@ -334,7 +342,7 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
             // R = ( R * 10 ) mod S
             _Anvil_xint_mul_int(&R, 5);
             
-            U = _Anvil_xint_div_small(&R, &R, &S);
+            U = _Anvil_xint_div_small(&R, &S);
 
             // R is 2 * R as stated above
             _Anvil_xint_lshift(&R, &R, 1);

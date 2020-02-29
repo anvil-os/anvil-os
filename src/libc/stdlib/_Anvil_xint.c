@@ -426,66 +426,36 @@ uint32_t _Anvil_xint_div_5exp(_Anvil_xint *x, int e)
     return 0;
 }
 
-uint32_t _Anvil_xint_div_small(_Anvil_xint *rem, _Anvil_xint *u, _Anvil_xint *v)
+int qq1, qq2;
+
+uint32_t _Anvil_xint_div_small(_Anvil_xint *u, _Anvil_xint *v)
 {
     // Find the highest bit in the highest word in v that contains data
     int highest_word = get_highest_word(v);
-    int highest_bit = get_highest_bit(v->data[highest_word]);
-    
+
     // Move both u and v to the left so that the top bit of V is set
     uint32_t denom;
     uint64_t numer;
-    
+
     if (highest_word > 0)
     {
-        denom = v->data[highest_word];
-        denom <<= 31 - highest_bit;
-        if (highest_bit + 1 < 32)
-        {
-            denom |= v->data[highest_word - 1] >> (highest_bit + 1);
-        }
-        ++denom;
-        
+        denom = v->data[highest_word] + 1;
+
         if (highest_word == u->size - 2)
         {
             // U is longer than V
-            //  U U U
-            //    V V
             numer = u->data[u->size - 1];
             numer <<= 32;
             numer |= u->data[u->size - 2];
-            numer <<= 31 - highest_bit;
-            if (highest_bit + 1 < 32)
-            {
-                numer |= u->data[u->size - 3] >> (highest_bit + 1);
-            }
         }
         else if (highest_word == u->size - 1)
         {
             // U and V are equal length
-            //    U U
-            //    V V
             numer = u->data[u->size - 1];
-            numer <<= 31 - highest_bit;
-            if (highest_bit + 1 < 32)
-            {
-                numer |= u->data[u->size - 2] >> (highest_bit + 1);
-            }
-        }
-        else if (highest_word == u->size)
-        {
-            // U is shorter than V
-            //    U
-            //  V V
-            numer = 0;
-            numer <<= 31 - highest_bit;
-            if (highest_bit + 1 < 32)
-            {
-                numer |= u->data[u->size - 1] >> (highest_bit + 1);
-            }
         }
         else
         {
+            // U is shorter than V
             numer = 0;
         }
     }
@@ -514,18 +484,24 @@ uint32_t _Anvil_xint_div_small(_Anvil_xint *rem, _Anvil_xint *u, _Anvil_xint *v)
         k = prod_diff >> 32;
     }
 
-    _Anvil_xint_assign(rem, u);
-    while (_Anvil_xint_cmp(rem, v) >= 0)
+    ++qq1;
+    while (_Anvil_xint_cmp(u, v) >= 0)
     {
-        _Anvil_xint_sub(rem, rem, v);
+        ++qq2;
+        _Anvil_xint_sub(u, u, v);
         ++quot;
     }
-//    _Anvil_xint_print("U", u);
-//    _Anvil_xint_print("V", v);
-    trim_zeroes(rem);
     trim_zeroes(u);
     trim_zeroes(v);
     return quot;
+}
+
+int _Anvil_xint_highest_bit(_Anvil_xint *x)
+{
+    // Find the highest bit in the highest word in v that contains data
+    int highest_word = get_highest_word(x);
+    int highest_bit = get_highest_bit(x->data[highest_word]);
+    return highest_word * 32 + highest_bit;
 }
 
 uint32_t _Anvil_xint_div(_Anvil_xint *q, _Anvil_xint *r, _Anvil_xint *u, _Anvil_xint *v)
@@ -645,14 +621,17 @@ uint32_t _Anvil_xint_div_int(_Anvil_xint *quot, _Anvil_xint *x, uint32_t v)
 
 uint32_t _Anvil_xint_lshift(_Anvil_xint *y, _Anvil_xint *x, int numbits)
 {
+    if (numbits == 0)
+    {
+        return 0;
+    }
     if (numbits < 0)
     {
-        //printf("Doing RSHIFT\n");
         return _Anvil_xint_rshift(y, x, -numbits);
     }
     // Calculate the shift
     int shift_words = numbits / 32;
-    int shift_bits = numbits - 32 * shift_words;
+    int shift_bits = numbits % 32;
 
     // Find the highest word in x that contains data
     int highest_word = get_highest_word(x);
@@ -695,7 +674,7 @@ uint32_t _Anvil_xint_rshift(_Anvil_xint *y, _Anvil_xint *x, int numbits)
 {
     // Calculate the shift
     int shift_words = numbits / 32;
-    int shift_bits = numbits - 32 * shift_words;
+    int shift_bits = numbits % 32;
 
     // Find the highest word in x that contains data
     int highest_word = get_highest_word(x);
