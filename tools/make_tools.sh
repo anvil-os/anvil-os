@@ -72,13 +72,13 @@ export GCC_ARCH_ARGS="\
  --disable-shared \
  --disable-threads \
  --disable-wchar_t \
- --with-fpu=vfp \
  --disable-clocale \
  --disable-libstdcxx-pch \
  --disable-libstdcxx-verbose \
  --enable-cxx-flags=-fno-exceptions \
  --with-newlib \
  --enable-multilib \
+ --with-multilib-list=rmprofile \
  "
 fi
 
