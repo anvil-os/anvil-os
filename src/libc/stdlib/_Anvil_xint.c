@@ -589,6 +589,9 @@ uint32_t _Anvil_xint_div_int(_Anvil_xint *quot, _Anvil_xint *x, uint32_t v)
 
 uint32_t _Anvil_xint_lshift(_Anvil_xint *y, _Anvil_xint *x, int numbits)
 {
+    uint32_t *X = x->data;
+    uint32_t *Y = y->data;
+
     if (numbits == 0)
     {
         return 0;
@@ -597,48 +600,34 @@ uint32_t _Anvil_xint_lshift(_Anvil_xint *y, _Anvil_xint *x, int numbits)
     {
         return _Anvil_xint_rshift(y, x, -numbits);
     }
+
     // Calculate the shift
     int shift_words = numbits / 32;
     int shift_bits = numbits % 32;
 
-    // Find the highest word in x that contains data
-    int highest_word = get_highest_word(x);
-    int highest_bit = get_highest_bit(x->data[highest_word]);
-    
     if (shift_bits == 0)
     {
         _Anvil_xint_resize(y, x->size + shift_words);
         for (int j=y->size-1; j>=shift_words; --j)
         {
-            y->data[j] = x->data[j - shift_words];
-        }
-        for (int j=shift_words-1; j>=0; --j)
-        {
-            y->data[j] = 0;
+            Y[j] = X[j - shift_words];
         }
     }
     else
     {
-        _Anvil_xint_resize(y, x->size + shift_words);
-        for (int j=y->size-1; j>=shift_words; --j)
+        // Add 1 to the size to allow the bits to flow in
+        _Anvil_xint_resize(y, x->size + shift_words + 1);
+        Y[y->size - 1] = X[y->size - 1 - shift_words - 1] >> (32 - shift_bits);
+        for (int j=y->size-2; j>=shift_words+1; --j)
         {
-            y->data[j] = x->data[j - shift_words];
+            Y[j] = (X[j - shift_words] << shift_bits) | (X[j - shift_words - 1] >> (32 - shift_bits));
         }
-        for (int j=shift_words-1; j>=0; --j)
-        {
-            y->data[j] = 0;
-        }
-        if (shift_bits + highest_bit > 31)
-        {
-            _Anvil_xint_resize(y, y->size + 1);
-        }
-        for (int j=y->size-1; j>0; --j)
-        {
-            y->data[j] = (y->data[j] << shift_bits) | (y->data[j - 1] >> (32 - shift_bits));
-        }
-        y->data[0] = y->data[0] << shift_bits;
+        Y[shift_words] = X[0] << shift_bits;
     }
-
+    for (int j=shift_words-1; j>=0; --j)
+    {
+        Y[j] = 0;
+    }
     trim_zeroes(y);
 
     return 0;
@@ -650,10 +639,6 @@ uint32_t _Anvil_xint_rshift(_Anvil_xint *y, _Anvil_xint *x, int numbits)
     int shift_words = numbits / 32;
     int shift_bits = numbits % 32;
 
-    // Find the highest word in x that contains data
-    int highest_word = get_highest_word(x);
-    int highest_bit = get_highest_bit(x->data[highest_word]);
-    
     // If all of x will be shifted out ...
     if (x->size <= shift_words)
     {
