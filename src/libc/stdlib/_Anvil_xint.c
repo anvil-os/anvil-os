@@ -635,6 +635,9 @@ uint32_t _Anvil_xint_lshift(_Anvil_xint *y, _Anvil_xint *x, int numbits)
 
 uint32_t _Anvil_xint_rshift(_Anvil_xint *y, _Anvil_xint *x, int numbits)
 {
+    uint32_t *X = x->data;
+    uint32_t *Y = y->data;
+
     // Calculate the shift
     int shift_words = numbits / 32;
     int shift_bits = numbits % 32;
@@ -648,31 +651,28 @@ uint32_t _Anvil_xint_rshift(_Anvil_xint *y, _Anvil_xint *x, int numbits)
     }
     
     // We need y->size to be at least x->size - shift_words in size
+    // Note that if x and y are the same xint, _Anvil_xint_resize
+    // won't be called and x->size won't change
     if (y->size < x->size - shift_words)
     {
         _Anvil_xint_resize(y, x->size - shift_words);
     }
-    if (shift_words || (y != x))
+    if (shift_bits == 0)
     {
-        // Work from right to left
         for (int j=0; j<x->size - shift_words; ++j)
         {
-            y->data[j] = x->data[j + shift_words];
+            Y[j] = X[j + shift_words];
         }
     }
-    if (shift_bits)
+    else
     {
-        uint64_t tmp = 0;
         for (int j=0; j<x->size - shift_words - 1; ++j)
         {
-            tmp = y->data[j+1];
-            tmp <<= (32 - shift_bits);
-            tmp |= y->data[j] >> shift_bits;
-            y->data[j] = tmp & 0xffffffff;
+            Y[j] = (X[j + shift_words] >> shift_bits) | (X[j + shift_words + 1] << (32 - shift_bits));
         }
-        y->data[x->size - shift_words - 1] >>= shift_bits;
+        Y[x->size - shift_words - 1] = X[x->size - 1] >> shift_bits;
     }
-    
+    _Anvil_xint_resize(y, x->size - shift_words);
     trim_zeroes(y);
 
     return 0;
