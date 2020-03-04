@@ -11,9 +11,9 @@ int cc0, cc1, cc2, cc3, cc4, cc5;
 int aa1, aa2;
 int big, small;
 
-static const xint_size = 40;
+static const int xint_size = 40;
 
-char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cutoff_place_parm, int *pk)
+char *_Anvil_dragon4(int e, uint64_t f, int p, int cutoff_mode, int cutoff_place_parm, int *pk)
 {
     _Anvil_xint R;
     _Anvil_xint S;
@@ -30,8 +30,6 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
     
     char *pret_str = ret_str;
     
-    int k = 0;
-    
     _Anvil_xint_init(&R, xint_size);
     _Anvil_xint_init(&S, xint_size);
     _Anvil_xint_init(&Mplus, xint_size);
@@ -46,11 +44,10 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
     // S = 1 << max(0, -(e-p))
     // M+ = 1 << max(e-p, 0)
     // M- = 1 << max(e-p, 0)
-    int R2e, S2e, Mp2e, Mm2e;
-    R2e = MAX(e-p, 0);
-    S2e = MAX(0, -(e-p));
-    Mp2e = MAX(e-p, 0);
-    Mm2e = MAX(e-p, 0);
+    int R2e = MAX(e-p, 0);
+    int S2e = MAX(0, -(e-p));
+    int Mp2e = MAX(e-p, 0);
+    int Mm2e = MAX(e-p, 0);
 
     // FIXUP PROCEDURE
     // Account for unequal gaps
@@ -68,28 +65,15 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
     // and the second while R + M+/2 >= S. The result of these is to give
     // S/10 <= R < S.
     //
-    // while R < ceil(S/10)
-    // {
-    //    --k;
-    //    R = R * 10
-    //    M- = M- * 10
-    //    M+ = M+ * 10
-    // }
-    // while (R + M+/2 >= S)
-    // {
-    //    S = S * 10
-    //    ++k
-    // }
-    //
     // David M Gay in "Correctly Rounded Binary-Decimal and Decimal Binary
     // Conversion" suggests that if we calculate an approximation of the log10
     // of the input number we can speed this up.
     // As long as we err in the correct direction we can remove the need for
     // the first loop and cause the 2nd loop to be executed either 0 or 1 times
-    // To that end we keep the 2nd loop inside as below.
+    // We will keep both loops but expect them to be executed rarely
     //
     uint64_t f1 = f;
-    int32_t e1 = e;
+    int e1 = e;
     while ((f1 & 0x10000000000000) == 0)
     {
         f1 <<= 1;
@@ -101,7 +85,7 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
         --log10;
     }
 
-    k = log10;
+    int k = log10;
     if (k < 0)
     {
         R2e -= k;
@@ -116,9 +100,9 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
         S5e += k;
         S2e += k;
     }
-
-//    printf("f=%lld e=%d log=%d\n", f, e, log10);
     
+    --S5e; --S2e;
+
     // Remove common factors now
     int lowest = 10000;
     if (R2e < lowest) lowest = R2e;
@@ -139,8 +123,14 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
     Mp5e -= lowest;
     Mm5e -= lowest;
     
-//    printf("2: %d %d %d %d\n", R2e, S2e, Mp2e, Mm2e);
-//    printf("5: %d %d %d %d\n", R5e, S5e, Mp5e, Mm5e);
+    // while (R < ceil(S/10))
+    // {
+    //    --k;
+    //    R = R * 10
+    //    M- = M- * 10
+    //    M+ = M+ * 10
+    // }
+    // calculate ceil(S/10)
 
     _Anvil_xint_assign_64(&R, f);
     _Anvil_xint_lshift(&R, &R, R2e);
@@ -149,22 +139,9 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
     _Anvil_xint_lshift(&S, &S, S2e);
     _Anvil_xint_mul_5exp(&S, S5e);
 
-    // while (R < ceil(S/B))
-    // {
-    //    --k;
-    //    R = R * 10
-    //    M- = M- * 10
-    //    M+ = M+ * 10
-    // }
-    // calculate ceil(S/B)
-    if (_Anvil_xint_div_int(&TEMP, &S, 10))
-    {
-        // If there is a remainder round up to get ceiling
-        _Anvil_xint_add_int(&TEMP, 1);
-    }
     // while R < ceil(S/B)
     loop_cnt = 0;
-    while (_Anvil_xint_cmp(&R, &TEMP) < 0)
+    while (_Anvil_xint_cmp(&R, &S) < 0)
     {
         // k = k-1
         // R = R * B
@@ -172,15 +149,15 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
         // M+ = M+ * B
         --k;
         _Anvil_xint_mul_int(&R, 10);
-        ++R5e;
-        ++R2e;
-        ++Mm5e;
-        ++Mm2e;
-        ++Mp5e;
-        ++Mp2e;
+        ++R5e; ++R2e;
+        ++Mm5e; ++Mm2e;
+        ++Mp5e; ++Mp2e;
         ++loop_cnt;
         ++cc0;
     }
+
+    _Anvil_xint_mul_int(&S, 10);
+    ++S5e; ++S2e;
 
     //printf("Loop1=%d\n", loop_cnt);
 
@@ -335,9 +312,10 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
     int low;
     int high;
 
-    // From now on let R actually be 2R
-    _Anvil_xint_mul_int(&R, 2);
-    
+    // From now on let R actually be 2R and S be 2S
+    _Anvil_xint_lshift(&R, &R, 1);
+    _Anvil_xint_lshift(&S, &S, 1);
+
     // The original Dragon4 algorithm doesn't have this test but it's
     // certainly needed
     if (_Anvil_xint_cmp(&R, &Mminus) >= 0)
@@ -354,15 +332,12 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
         {
             ++cc4;
             --k;
-            
+
             // U = floor ( R * 10 ) / S
             // R = ( R * 10 ) mod S
-            _Anvil_xint_mul_int(&R, 5);
+            _Anvil_xint_mul_int(&R, 10);
             
             U = _Anvil_xint_div_small(&R, &S);
-
-            // R is 2 * R as stated above
-            _Anvil_xint_lshift(&R, &R, 1);
 
             // M+ = M+ * 10
             _Anvil_xint_mul_int(&Mplus, 10);
@@ -373,25 +348,18 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
             // low = 2 * R < M-
             low = _Anvil_xint_cmp(&R, &Mminus) == -1;
             
-            // high = 2 * R > 2 * S - M+
-            _Anvil_xint_lshift(&TEMP, &S, 1);
+            // high = 2 * R + M+ > 2 * S
+            _Anvil_xint_assign(&TEMP, &R);
+            _Anvil_xint_add(&TEMP, &Mplus);
 
-            if (_Anvil_xint_cmp(&TEMP, &Mplus) >= 0)
+            // According to the Dragon logic this should be >= 1 but >= 0 works - this is the 10^23 problem
+            if (roundup_flag)
             {
-                _Anvil_xint_sub(&TEMP, &TEMP, &Mplus);
-                // According to the Dragon logic this should be >= 1 but >= 0 works - this is the 10^23 problem
-                if (roundup_flag)
-                {
-                    high = _Anvil_xint_cmp(&R, &TEMP) >= 0;
-                }
-                else
-                {
-                    high = _Anvil_xint_cmp(&R, &TEMP) > 0;
-                }
+                high = _Anvil_xint_cmp(&TEMP, &S) >= 0;
             }
             else
             {
-                high = 1;
+                high = _Anvil_xint_cmp(&TEMP, &S) > 0;
             }
 
             if (low || high || (k == cutoff_place))
@@ -401,6 +369,7 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
             *pret_str++ = U + 0x30;
         }
 
+        // The loop is done so output the final digit
         if (low && !high)
         {
             *pret_str++ = U + 0x30;
@@ -411,6 +380,8 @@ char *_Anvil_dragon4(int32_t e, uint64_t f, int32_t p, int cutoff_mode, int cuto
         }
         else
         {
+            // Scale R up by 2
+            _Anvil_xint_lshift(&R, &R, 1);
             int cmp = _Anvil_xint_cmp(&R, &S);
             if (cmp < 0)
             {

@@ -29,7 +29,7 @@ uint32_t _Anvil_xint_mul_int(_Anvil_xint *x, unsigned n);
 uint32_t _Anvil_xint_add(_Anvil_xint *x, _Anvil_xint *y);
 uint32_t _Anvil_xint_add_int(_Anvil_xint *x, unsigned n);
 int _Anvil_xint_cmp(_Anvil_xint *x, _Anvil_xint *y);
-uint32_t _Anvil_xint_sub(_Anvil_xint *res, _Anvil_xint *x, _Anvil_xint *y);
+int _Anvil_xint_sub(_Anvil_xint *res, _Anvil_xint *x, _Anvil_xint *y);
 uint32_t _Anvil_xint_mul(_Anvil_xint *res, _Anvil_xint *x, _Anvil_xint *y);
 uint32_t _Anvil_xint_mul_5exp(_Anvil_xint *x, int e);
 uint32_t _Anvil_xint_div_5exp(_Anvil_xint *x, int e);

@@ -190,13 +190,12 @@ int _Anvil_xint_cmp(_Anvil_xint *x, _Anvil_xint *y)
     return 0;
 }
 
-uint32_t _Anvil_xint_sub(_Anvil_xint *res, _Anvil_xint *x, _Anvil_xint *y)
+int _Anvil_xint_sub(_Anvil_xint *res, _Anvil_xint *x, _Anvil_xint *y)
 {
     // Based on Knuth's algorithm S
-    if (x->size != y->size)
+    if (x->size < y->size)
     {
-        //printf("DIFF SIZE\n");
-        
+        return -1;
     }
     int32_t k = 0;
     for (int j=0; j<y->size; ++j)
@@ -348,32 +347,35 @@ uint32_t _Anvil_xint_mul_5exp(_Anvil_xint *x, int e)
     }
     if (e > biggest_mul)
     {
-        printf("Doing mul %d\n", e);
+        //printf("Doing mul %d\n", e);
         biggest_mul = e;
     }
 
-    _Anvil_xint tmp;
-    _Anvil_xint_init(&tmp, x->capacity);
     _Anvil_xint_mul_int(x, small_pow_5[e & 0x7]);
-    _Anvil_xint_assign(&tmp, x);
     e >>= 3;
     int ndx = 0;
-    while (e)
+    if (e)
     {
-        if (e & 1)
+        _Anvil_xint tmp;
+        _Anvil_xint_init(&tmp, x->capacity);
+        _Anvil_xint_assign(&tmp, x);
+        while (e)
         {
-            if (ndx >= sizeof(big_pow_5) / sizeof(big_pow_5[0]))
+            if (e & 1)
             {
-                printf("TOO BIG %d\n", ndx);
-                while (1);
+                if (ndx >= sizeof(big_pow_5) / sizeof(big_pow_5[0]))
+                {
+                    printf("TOO BIG %d\n", ndx);
+                    while (1);
+                }
+                _Anvil_xint_mul(&tmp, x, &big_pow_5[ndx]);
+                _Anvil_xint_assign(x, &tmp);
             }
-            _Anvil_xint_mul(&tmp, x, &big_pow_5[ndx]);
-            _Anvil_xint_assign(x, &tmp);
+            ++ndx;
+            e >>= 1;
         }
-        ++ndx;
-        e >>= 1;
+        _Anvil_xint_delete(&tmp);
     }
-    _Anvil_xint_delete(&tmp);
     return 0;
 }
 
@@ -381,7 +383,7 @@ uint32_t _Anvil_xint_div_5exp(_Anvil_xint *x, int e)
 {
     if (e > smallest_div)
     {
-        printf("Doing div %d\n", e);
+        //printf("Doing div %d\n", e);
         smallest_div = e;
     }
     const int highest_small_e5 = sizeof(small_pow_5) / sizeof(small_pow_5[0]) - 2;
