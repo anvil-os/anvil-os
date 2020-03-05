@@ -7,9 +7,7 @@
 
 char ret_str[100];
 
-int cc0, cc1, cc2, cc3, cc4, cc5;
-int aa1, aa2;
-int big, small;
+int cc0, cc1, cc2, cc3, cc4, cc5, cc6;;
 
 static const int xint_size = 40;
 
@@ -22,8 +20,8 @@ char *_Anvil_dragon4(int e, uint64_t f, int p, int cutoff_mode, int cutoff_place
     _Anvil_xint TEMP;
 
     uint32_t U;
-    int loop_cnt;
     int R5e=0, S5e=0, Mp5e=0, Mm5e=0;
+    int R2e=0, S2e=0, Mp2e=0, Mm2e=0;
     int cutoff_place = cutoff_place_parm;
 
     int roundup_flag = 0;
@@ -44,10 +42,16 @@ char *_Anvil_dragon4(int e, uint64_t f, int p, int cutoff_mode, int cutoff_place
     // S = 1 << max(0, -(e-p))
     // M+ = 1 << max(e-p, 0)
     // M- = 1 << max(e-p, 0)
-    int R2e = MAX(e-p, 0);
-    int S2e = MAX(0, -(e-p));
-    int Mp2e = MAX(e-p, 0);
-    int Mm2e = MAX(e-p, 0);
+    if (e - p >= 0)
+    {
+        R2e = e - p;
+        Mp2e = e - p;
+        Mm2e = e - p;
+    }
+    else
+    {
+        S2e = p - e;
+    }
 
     // FIXUP PROCEDURE
     // Account for unequal gaps
@@ -101,6 +105,7 @@ char *_Anvil_dragon4(int e, uint64_t f, int p, int cutoff_mode, int cutoff_place
         S2e += k;
     }
     
+    // This gives S = S / 10
     --S5e; --S2e;
 
     // Remove common factors now
@@ -140,20 +145,18 @@ char *_Anvil_dragon4(int e, uint64_t f, int p, int cutoff_mode, int cutoff_place
     _Anvil_xint_mul_5exp(&S, S5e);
 
     // while R < ceil(S/B)
-    loop_cnt = 0;
     while (_Anvil_xint_cmp(&R, &S) < 0)
     {
         // k = k-1
         // R = R * B
         // M- = M- * B
         // M+ = M+ * B
+        ++cc2;
         --k;
         _Anvil_xint_mul_int(&R, 10);
         ++R5e; ++R2e;
         ++Mm5e; ++Mm2e;
         ++Mp5e; ++Mp2e;
-        ++loop_cnt;
-        ++cc0;
     }
 
     _Anvil_xint_mul_int(&S, 10);
@@ -180,34 +183,21 @@ char *_Anvil_dragon4(int e, uint64_t f, int p, int cutoff_mode, int cutoff_place
     _Anvil_xint_lshift(&S, &S, 1);
     ///////////////////////////////////////
 
-    int a = 0;
+    int loop = 0;
     do
     {
-        if (a > 0)
-        {
-            ++cc2;
-            // Pre-multiply S by 10^a
-            k += a - 1;
-            _Anvil_xint_mul_5exp(&S, a-1);
-            S5e += a - 1;
-            _Anvil_xint_lshift(&S, &S, a-1);
-            S2e += a - 1;
-        }
-        loop_cnt = 0;
         // while TEMP >= 2 * S
         while (_Anvil_xint_cmp(&TEMP, &S) >= 0)
         {
             // S = S * B
             // k = k + 1
+            ++cc3;
             _Anvil_xint_mul_int(&S, 10);
             ++k;
             ++S5e;
             ++S2e;
-            ++loop_cnt;
-            ++cc1;
         }
-//        if (loop_cnt) printf("Loop2 %d\n", loop_cnt);
-        //if (a > 0 && a != loop_cnt) printf("Loops=%d a=%d\n", loop_cnt, a);
+
         switch (cutoff_mode)
         {
             case e_normal:
@@ -219,7 +209,7 @@ char *_Anvil_dragon4(int e, uint64_t f, int p, int cutoff_mode, int cutoff_place
             case e_absolute:
             {
                 // This is the Dragon4 CutoffAdjust
-                a = cutoff_place - k;
+                int a = cutoff_place - k;
                 if (cutoff_mode == e_relative && a > -1)
                 {
                     a = -1;
@@ -252,6 +242,7 @@ char *_Anvil_dragon4(int e, uint64_t f, int p, int cutoff_mode, int cutoff_place
                         // Y = S * 10 ^ a
                         _Anvil_xint_mul_5exp(&TEMP, a);
                         _Anvil_xint_lshift(&TEMP, &TEMP, a);
+                        ++cc4;
                     }
                     else if (a < 0)
                     {
@@ -274,6 +265,7 @@ char *_Anvil_dragon4(int e, uint64_t f, int p, int cutoff_mode, int cutoff_place
                         {
                             _Anvil_xint_assign_64(&TEMP, 1);
                         }
+                        ++cc5;
                     }
                     // If Y is greater than M use it
                     if (_Anvil_xint_cmp(&TEMP, &Mminus) > 0)
@@ -281,12 +273,13 @@ char *_Anvil_dragon4(int e, uint64_t f, int p, int cutoff_mode, int cutoff_place
                         _Anvil_xint_assign(&Mminus, &TEMP);
                         Mm2e = S2e + a;
                         Mm5e = S5e + a;
-                    }
-                    if (_Anvil_xint_cmp(&TEMP, &Mplus) > 0)
-                    {
-                        _Anvil_xint_assign(&Mplus, &TEMP);
-                        Mp2e = S2e + a;
-                        Mp5e = S5e + a;
+                        if (_Anvil_xint_cmp(&TEMP, &Mplus) > 0)
+                        {
+                            _Anvil_xint_assign(&Mplus, &TEMP);
+                            Mp2e = S2e + a;
+                            Mp5e = S5e + a;
+                            ++cc6;
+                        }
                     }
                     if (_Anvil_xint_cmp(&TEMP, &Mplus) == 0)
                     {
@@ -301,20 +294,71 @@ char *_Anvil_dragon4(int e, uint64_t f, int p, int cutoff_mode, int cutoff_place
                 break;
             }
         }
-    } while (_Anvil_xint_cmp(&TEMP, &S) >= 0);
+        loop = 0;
+        if (_Anvil_xint_cmp(&TEMP, &S) >= 0)
+        {
+            loop = 1;
+            //printf("We're looping\n");
+        }
+    } while (loop);
 
-    ///////////////////////////////////////
-    // Restore S back to being S
-    _Anvil_xint_rshift(&S, &S, 1);
-    ///////////////////////////////////////
+#if 0
+    // Check all our variables are correct
+    _Anvil_xint_assign_64(&TEMP, f);
+    _Anvil_xint_lshift(&TEMP, &TEMP, R2e);
+    _Anvil_xint_mul_5exp(&TEMP, R5e);
+    if (_Anvil_xint_cmp(&TEMP, &R) != 0)
+    {
+        printf("R wrong\n");
+    }
+    _Anvil_xint_assign_64(&TEMP, 1);
+    _Anvil_xint_lshift(&TEMP, &TEMP, S2e);
+    _Anvil_xint_mul_5exp(&TEMP, S5e);
+    if (_Anvil_xint_cmp(&TEMP, &S) != 0)
+    {
+        printf("S wrong\n");
+    }
+    _Anvil_xint_assign_64(&TEMP, 1);
+    if (Mp5e > Mp2e)
+    {
+        _Anvil_xint_mul_5exp(&TEMP, Mp5e);
+        _Anvil_xint_lshift(&TEMP, &TEMP, Mp2e);
+    }
+    else
+    {
+        _Anvil_xint_lshift(&TEMP, &TEMP, Mp2e);
+        _Anvil_xint_mul_5exp(&TEMP, Mp5e);
+    }
+    if (_Anvil_xint_cmp(&TEMP, &Mplus) != 0)
+    {
+        _Anvil_xint_print("S   ", &S);
+        _Anvil_xint_print("TEMP", &TEMP);
+        _Anvil_xint_print("M+  ", &Mplus);
+        printf("M+ wrong\n");
+    }
+    _Anvil_xint_assign_64(&TEMP, 1);
+    if (Mm5e > Mm2e)
+    {
+        _Anvil_xint_mul_5exp(&TEMP, Mm5e);
+        _Anvil_xint_lshift(&TEMP, &TEMP, Mm2e);
+    }
+    else
+    {
+        _Anvil_xint_lshift(&TEMP, &TEMP, Mm2e);
+        _Anvil_xint_mul_5exp(&TEMP, Mm5e);
+    }
+    if (_Anvil_xint_cmp(&TEMP, &Mminus) != 0)
+    {
+        _Anvil_xint_print("S   ", &S);
+        _Anvil_xint_print("TEMP", &TEMP);
+        _Anvil_xint_print("M-  ", &Mminus);
+        printf("M- wrong\n");
+    }
+#endif
 
     // LOOP
-    int low;
-    int high;
-
-    // From now on let R actually be 2R and S be 2S
+    // S already holds 2S so let's make R be 2R
     _Anvil_xint_lshift(&R, &R, 1);
-    _Anvil_xint_lshift(&S, &S, 1);
 
     // The original Dragon4 algorithm doesn't have this test but it's
     // certainly needed
@@ -328,9 +372,12 @@ char *_Anvil_dragon4(int e, uint64_t f, int p, int cutoff_mode, int cutoff_place
         _Anvil_xint_lshift(&Mplus, &Mplus, 31-hbit);
         _Anvil_xint_lshift(&Mminus, &Mminus, 31-hbit);
 
+        int low;
+        int high;
+
         while (1)
         {
-            ++cc4;
+            ++cc1;
             --k;
 
             // U = floor ( R * 10 ) / S
@@ -397,7 +444,7 @@ char *_Anvil_dragon4(int e, uint64_t f, int p, int cutoff_mode, int cutoff_place
             }
         }
     }
-    
+
     *pret_str = 0;
     *pk = k;
 
@@ -412,7 +459,7 @@ char *_Anvil_dragon4(int e, uint64_t f, int p, int cutoff_mode, int cutoff_place
 
 char *_Anvil_dtoa(double dd, int mode, int ndigits, int *decpt, int *sign, char **rve)
 {
-    ++cc5;
+    ++cc0;
 
     int32_t e = 0;
     uint64_t f = 0;

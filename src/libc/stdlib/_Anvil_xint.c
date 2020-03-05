@@ -76,6 +76,11 @@ int _Anvil_xint_print(const char *label, _Anvil_xint *x)
 
 void _Anvil_xint_assign_64(_Anvil_xint *x, uint64_t val)
 {
+    if (val == 0)
+    {
+        x->size = 0;
+        return;
+    }
     _Anvil_xint_resize(x, val & 0xffffffff00000000U ? 2 : 1);
     x->data[0] = val & 0xffffffff;
     x->data[1] = val >> 32;
@@ -108,7 +113,7 @@ uint32_t _Anvil_xint_mul_int(_Anvil_xint *x, unsigned n)
         printf("MUL OVERFLOW\n");
         while (1);
     }
-    trim_zeroes(x);
+    //trim_zeroes(x);
     return k;
 }
 
@@ -141,7 +146,7 @@ uint32_t _Anvil_xint_add(_Anvil_xint *x, _Anvil_xint *y)
         x->data[x->size - 1] = k;
         k = 0;
     }
-    trim_zeroes(x);
+    //trim_zeroes(x);
     return k;
 }
 
@@ -160,7 +165,7 @@ uint32_t _Anvil_xint_add_int(_Anvil_xint *x, unsigned n)
         ++x->size;
         k = 0;
     }
-    trim_zeroes(x);
+    //trim_zeroes(x);
     return k;
 }
 
@@ -386,7 +391,7 @@ uint32_t _Anvil_xint_div_5exp(_Anvil_xint *x, int e)
         //printf("Doing div %d\n", e);
         smallest_div = e;
     }
-    const int highest_small_e5 = sizeof(small_pow_5) / sizeof(small_pow_5[0]) - 2;
+    const int highest_small_e5 = sizeof(small_pow_5) / sizeof(small_pow_5[0]) - 1;
     while (e > highest_small_e5)
     {
         _Anvil_xint_div_int(x, x, small_pow_5[highest_small_e5]);
@@ -446,6 +451,11 @@ uint32_t _Anvil_xint_div_small(_Anvil_xint *u, _Anvil_xint *v)
         _Anvil_xint_resize(v, u->size);
     }
 
+    if (quot == 0)
+    {
+        return 0;
+    }
+    
     int64_t k = 0;
     for (int i=0; i<u->size; ++i)
     {
