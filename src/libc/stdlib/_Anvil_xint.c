@@ -171,21 +171,11 @@ uint32_t _Anvil_xint_add_int(_Anvil_xint *x, unsigned n)
 
 int _Anvil_xint_cmp(_Anvil_xint *x, _Anvil_xint *y)
 {
-    int xsize = x->size;
-    int ysize = y->size;
-    while ((xsize > ysize) && (x->data[xsize - 1] == 0))
+    if (x->size != y->size)
     {
-        --xsize;
+        return x->size < y->size ? -1 : 1;
     }
-    while ((ysize > xsize) && (y->data[ysize - 1] == 0))
-    {
-        --ysize;
-    }
-    if (xsize != ysize)
-    {
-        return xsize < ysize ? -1 : 1;
-    }
-    for (int j=xsize-1; j>=0; --j)
+    for (int j=x->size-1; j>=0; --j)
     {
         if (x->data[j] != y->data[j])
         {
@@ -247,15 +237,7 @@ uint32_t _Anvil_xint_mul(_Anvil_xint *w, _Anvil_xint *u, _Anvil_xint *v)
         }
         w->data[u->size + j] = k;
     }
-    int s;
-    for (s=u->size + v->size-1; s>=0; --s)
-    {
-        if (w->data[s])
-        {
-            break;
-        }
-    }
-    _Anvil_xint_resize(w, s+1);
+    trim_zeroes(w);
     return 0;
 }
 
@@ -456,13 +438,16 @@ uint32_t _Anvil_xint_div_small(_Anvil_xint *u, _Anvil_xint *v)
         return 0;
     }
     
-    int64_t k = 0;
+    int32_t k = 0;
     for (int i=0; i<u->size; ++i)
     {
         int64_t prod_diff = u->data[i] - quot * v->data[i] + k;
         u->data[i] = prod_diff & 0xffffffff;
         k = prod_diff >> 32;
     }
+
+    trim_zeroes(u);
+    trim_zeroes(v);
 
     ++qq1;
     while (_Anvil_xint_cmp(u, v) >= 0)
@@ -471,8 +456,6 @@ uint32_t _Anvil_xint_div_small(_Anvil_xint *u, _Anvil_xint *v)
         _Anvil_xint_sub(u, u, v);
         ++quot;
     }
-    trim_zeroes(u);
-    trim_zeroes(v);
     return quot;
 }
 
