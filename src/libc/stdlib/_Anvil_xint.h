@@ -4,6 +4,14 @@
 
 #include <stdint.h>
 
+struct _Anvil_xint_mempool_s
+{
+    void *pmem;
+    void *p;
+    int mempool_size;
+};
+typedef struct _Anvil_xint_mempool_s _Anvil_xint_mempool;
+
 struct _Anvil_xint_s
 {
     // This stores the data in little-endian format. This will simplify
@@ -11,15 +19,17 @@ struct _Anvil_xint_s
     int capacity;
     int size;
     uint32_t *data;
+    _Anvil_xint_mempool *ppool;
 };
-
 typedef struct _Anvil_xint_s _Anvil_xint;
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif
-void _Anvil_xint_init(_Anvil_xint *x, int size);
+_Anvil_xint_mempool *_Anvil_xint_mempool_init(int nitems, int size);
+void _Anvil_xint_mempool_free(_Anvil_xint_mempool *ppool);
+void _Anvil_xint_init(_Anvil_xint_mempool *ppool, _Anvil_xint *x, int size);
 void _Anvil_xint_delete(_Anvil_xint *x);
 int _Anvil_xint_is_zero(_Anvil_xint *x);
 int _Anvil_xint_print(const char *label, _Anvil_xint *x);

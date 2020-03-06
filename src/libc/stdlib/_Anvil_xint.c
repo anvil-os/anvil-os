@@ -13,20 +13,39 @@ static void trim_zeroes(_Anvil_xint *x);
 static int get_highest_word(_Anvil_xint *x);
 static int get_highest_bit(uint32_t word);
 
-void _Anvil_xint_init(_Anvil_xint *x, int size)
+_Anvil_xint_mempool *_Anvil_xint_mempool_init(int nitems, int size)
 {
+    _Anvil_xint_mempool *ppool;
+    int mempool_size = (nitems + 2) * size * sizeof(uint32_t);
+    ppool = malloc(sizeof(_Anvil_xint_mempool) + mempool_size);
+    ppool->pmem = ppool + 1;
+    ppool->p = ppool->pmem;
+    ppool->mempool_size = mempool_size;
+    return ppool;
+}
+
+void _Anvil_xint_mempool_free(_Anvil_xint_mempool *ppool)
+{
+    free(ppool);
+}
+
+void _Anvil_xint_init(_Anvil_xint_mempool *ppool, _Anvil_xint *x, int size)
+{
+    // Make sure that there's enough space left
     x->capacity = size;
     x->size = 0;
-    if ((x->data = malloc(x->capacity * sizeof(uint32_t))) == NULL)
+    x->ppool = ppool;
+    x->data = ppool->p;
+    ppool->p += x->capacity * sizeof(uint32_t);
+    if (ppool->p > ppool->pmem + ppool->mempool_size)
     {
-        printf("OOM\n");
-        while (1);
+        printf("Too big %p %p %x\n", ppool->p, ppool->pmem, ppool->mempool_size);
     }
 }
 
 void _Anvil_xint_delete(_Anvil_xint *x)
 {
-    free(x->data);
+    x->ppool->p -= x->capacity * sizeof(uint32_t);
 }
 
 void _Anvil_xint_resize(_Anvil_xint *x, int new_size)
@@ -344,7 +363,7 @@ uint32_t _Anvil_xint_mul_5exp(_Anvil_xint *x, int e)
     if (e)
     {
         _Anvil_xint tmp;
-        _Anvil_xint_init(&tmp, x->capacity);
+        _Anvil_xint_init(x->ppool, &tmp, x->capacity);
         _Anvil_xint_assign(&tmp, x);
         while (e)
         {
