@@ -7,13 +7,13 @@
 
 char ret_str[100];
 
-int cc0, cc1, cc2, cc3, cc4, cc5, cc6;;
+int cc0, cc1, cc2, cc3, cc4, cc5, cc6;
 
 static const int xint_size = 40;
 
 char *_Anvil_dragon4(int e, uint64_t f, int p, int cutoff_mode, int cutoff_place_parm, int *pk)
 {
-    _Anvil_xint_mempool *mempool;
+    _Anvil_xint_mempool mempool;
     _Anvil_xint R;
     _Anvil_xint S;
     _Anvil_xint Mplus;
@@ -134,13 +134,13 @@ char *_Anvil_dragon4(int e, uint64_t f, int p, int cutoff_mode, int cutoff_place
     // }
     // calculate ceil(S/10)
 
-    mempool = _Anvil_xint_mempool_init(5, xint_size);
-    _Anvil_xint_init(mempool, &R, xint_size);
+    _Anvil_xint_mempool_init(&mempool, 5, xint_size);
+    _Anvil_xint_init(&mempool, &R, xint_size);
     _Anvil_xint_assign_64(&R, f);
     _Anvil_xint_lshift(&R, &R, R2e);
     _Anvil_xint_mul_5exp(&R, R5e);
 
-    _Anvil_xint_init(mempool, &S, xint_size);
+    _Anvil_xint_init(&mempool, &S, xint_size);
     _Anvil_xint_assign_64(&S, 1);
     _Anvil_xint_lshift(&S, &S, S2e);
     _Anvil_xint_mul_5exp(&S, S5e);
@@ -168,18 +168,18 @@ char *_Anvil_dragon4(int e, uint64_t f, int p, int cutoff_mode, int cutoff_place
     // In the next part of the algorithm we need to compare
     // 2*R + M+ with 2*S
 
-    _Anvil_xint_init(mempool, &Mplus, xint_size);
+    _Anvil_xint_init(&mempool, &Mplus, xint_size);
     _Anvil_xint_assign_64(&Mplus, 1);
     _Anvil_xint_lshift(&Mplus, &Mplus, Mp2e);
     _Anvil_xint_mul_5exp(&Mplus, Mp5e);
 
-    _Anvil_xint_init(mempool, &Mminus, xint_size);
+    _Anvil_xint_init(&mempool, &Mminus, xint_size);
     _Anvil_xint_assign_64(&Mminus, 1);
     _Anvil_xint_lshift(&Mminus, &Mminus, Mm2e);
     _Anvil_xint_mul_5exp(&Mminus, Mm5e);
 
     // Let TEMP = 2 * R + M+
-    _Anvil_xint_init(mempool, &TEMP, xint_size);
+    _Anvil_xint_init(&mempool, &TEMP, xint_size);
     _Anvil_xint_lshift(&TEMP, &R, 1);
     _Anvil_xint_add(&TEMP, &Mplus);
 
@@ -464,7 +464,7 @@ char *_Anvil_dragon4(int e, uint64_t f, int p, int cutoff_mode, int cutoff_place
     _Anvil_xint_delete(&Mplus);
     _Anvil_xint_delete(&Mminus);
     _Anvil_xint_delete(&TEMP);
-    _Anvil_xint_mempool_free(mempool);
+    _Anvil_xint_mempool_free(&mempool);
 
     return ret_str;
 }
@@ -473,7 +473,7 @@ char *_Anvil_dtoa(double dd, int mode, int ndigits, int *decpt, int *sign, char 
 {
     ++cc0;
 
-    int32_t e = 0;
+    int e = 0;
     uint64_t f = 0;
     int32_t p = 0;
     int cutoff_mode = mode;

@@ -14,7 +14,7 @@ static const int xint_size = 88;
 static const int n = 53;
 static const int p = 64;
 
-uint64_t two_to_p = 1LL << p;                // 2^64
+//uint64_t two_to_p = 1LL << p;                // 2^64
 uint64_t two_to_n = 1LL << n;                // 2^53
 int64_t two_to_p_n_1 = 1LL << (p - n - 1);   // 2^10
 uint64_t two_to_p_minus_n = 1LL << (p - n);  // 2^9
@@ -102,7 +102,7 @@ double algoritm_r(_Anvil_xint_mempool *mempool, _Anvil_xint *f, int e, double z0
     _Anvil_xint_init(mempool, &y, xint_size);
     _Anvil_xint_init(mempool, &D_abs, xint_size);
     _Anvil_xint_init(mempool, &D2, xint_size);
-    _Anvil_xint_init(mempool, &M, 2);
+    _Anvil_xint_init(mempool, &M, xint_size);
 
     int loop = 0;
 
@@ -272,12 +272,13 @@ void dump_double(double z)
     bits.dbl = z;
     uint32_t hi = bits.uint >> 32 & 0xffffffff;
     uint32_t lo = bits.uint & 0xffffffff;
-    //printf("%08x %08x\n", hi, lo);
+    printf("%08x %08x\n", hi, lo);
 }
 
 double _Anvil_strtod(const char *restrict nptr, char **restrict endptr)
 {
     const char *str = nptr;
+    //*endptr = (char *)nptr;
     uint64_t mantissa;
     int exponent;
     int base;
@@ -288,8 +289,8 @@ double _Anvil_strtod(const char *restrict nptr, char **restrict endptr)
     int dec_point;
     int mantissa_full;
 
-    _Anvil_xint_mempool *mempool;
-    mempool = _Anvil_xint_mempool_init(5, xint_size);
+    _Anvil_xint_mempool mempool;
+    _Anvil_xint_mempool_init(&mempool, 6, xint_size);
     _Anvil_xint mant_big;
     int mant_big_exp;
 
@@ -369,7 +370,7 @@ double _Anvil_strtod(const char *restrict nptr, char **restrict endptr)
                 {
                     // We overflowed - record the error but keep eating digits
                     mantissa_full = 1;
-                    _Anvil_xint_init(mempool, &mant_big, xint_size);
+                    _Anvil_xint_init(&mempool, &mant_big, xint_size);
                     _Anvil_xint_assign_64(&mant_big, mantissa);
                     _Anvil_xint_mul_int(&mant_big, base);
                     _Anvil_xint_add_int(&mant_big, digit);
@@ -397,7 +398,7 @@ double _Anvil_strtod(const char *restrict nptr, char **restrict endptr)
                 {
                     // We overflowed - record the error but keep eating digits
                     mantissa_full = 1;
-                    _Anvil_xint_init(mempool, &mant_big, xint_size);
+                    _Anvil_xint_init(&mempool, &mant_big, xint_size);
                     _Anvil_xint_assign_64(&mant_big, mantissa);
                     _Anvil_xint_mul_int(&mant_big, base);
                     _Anvil_xint_add_int(&mant_big, digit);
@@ -513,12 +514,12 @@ double _Anvil_strtod(const char *restrict nptr, char **restrict endptr)
     {
         if ((mantissa < two_to_n) && abs(exponent + mantissa_exp) < 15)
         {
-            _Anvil_xint_mempool_free(mempool);
+            _Anvil_xint_mempool_free(&mempool);
             return neg ? -estimate : estimate;
         }
 
         //dump_double(estimate);
-        _Anvil_xint_init(mempool, &mant_big, xint_size);
+        _Anvil_xint_init(&mempool, &mant_big, xint_size);
         _Anvil_xint_assign_64(&mant_big, mantissa);
         exponent += mantissa_exp;
     }
@@ -527,8 +528,8 @@ double _Anvil_strtod(const char *restrict nptr, char **restrict endptr)
         exponent += mant_big_exp;
     }
 
-    double exact = algoritm_r(mempool, &mant_big, exponent, estimate);
+    double exact = algoritm_r(&mempool, &mant_big, exponent, estimate);
 
-    _Anvil_xint_mempool_free(mempool);
+    _Anvil_xint_mempool_free(&mempool);
     return neg ? -exact : exact;
 }

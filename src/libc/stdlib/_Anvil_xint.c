@@ -13,20 +13,18 @@ static void trim_zeroes(_Anvil_xint *x);
 static int get_highest_word(_Anvil_xint *x);
 static int get_highest_bit(uint32_t word);
 
-_Anvil_xint_mempool *_Anvil_xint_mempool_init(int nitems, int size)
+ int _Anvil_xint_mempool_init(_Anvil_xint_mempool *ppool, int nitems, int size)
 {
-    _Anvil_xint_mempool *ppool;
-    int mempool_size = (nitems + 2) * size * sizeof(uint32_t);
-    ppool = malloc(sizeof(_Anvil_xint_mempool) + mempool_size);
-    ppool->pmem = ppool + 1;
+    int mempool_size = (nitems + 1) * size;
+    ppool->pmem = (uint32_t *)malloc(mempool_size * sizeof(uint32_t));
     ppool->p = ppool->pmem;
     ppool->mempool_size = mempool_size;
-    return ppool;
+    return 0;
 }
 
 void _Anvil_xint_mempool_free(_Anvil_xint_mempool *ppool)
 {
-    free(ppool);
+    free(ppool->pmem);
 }
 
 void _Anvil_xint_init(_Anvil_xint_mempool *ppool, _Anvil_xint *x, int size)
@@ -36,7 +34,7 @@ void _Anvil_xint_init(_Anvil_xint_mempool *ppool, _Anvil_xint *x, int size)
     x->size = 0;
     x->ppool = ppool;
     x->data = ppool->p;
-    ppool->p += x->capacity * sizeof(uint32_t);
+    ppool->p += x->capacity;
     if (ppool->p > ppool->pmem + ppool->mempool_size)
     {
         printf("Too big %p %p %x\n", ppool->p, ppool->pmem, ppool->mempool_size);
@@ -45,7 +43,7 @@ void _Anvil_xint_init(_Anvil_xint_mempool *ppool, _Anvil_xint *x, int size)
 
 void _Anvil_xint_delete(_Anvil_xint *x)
 {
-    x->ppool->p -= x->capacity * sizeof(uint32_t);
+    x->ppool->p -= x->capacity;
 }
 
 void _Anvil_xint_resize(_Anvil_xint *x, int new_size)
@@ -231,7 +229,7 @@ int _Anvil_xint_sub(_Anvil_xint *res, _Anvil_xint *x, _Anvil_xint *y)
     return k;
 }
 
-uint32_t _Anvil_xint_mul(_Anvil_xint *w, _Anvil_xint *u, _Anvil_xint *v)
+uint32_t _Anvil_xint_mul(_Anvil_xint *w, _Anvil_xint *u, const _Anvil_xint *v)
 {
     // Based on Knuth's algorithm M. Knuth numbers the elements from
     // the big end so this looks slightly different, but it's the same
@@ -324,21 +322,21 @@ const uint32_t five_e1024[] =
 const _Anvil_xint big_pow_5[] =
 {
     // 8
-    { 1, 1, five_e8 },
+    { 1, 1, (uint32_t *)five_e8, NULL },
     // 16
-    { 2, 2, five_e16 },
+    { 2, 2, (uint32_t *)five_e16, NULL },
     // 32
-    { 3, 3, five_e32 },
+    { 3, 3, (uint32_t *)five_e32, NULL },
     // 64
-    { 5, 5, five_e64 },
+    { 5, 5, (uint32_t *)five_e64, NULL },
     // 128
-    { 10, 10, five_e128 },
+    { 10, 10, (uint32_t *)five_e128, NULL },
     // 256
-    { 19, 19, five_e256 },
+    { 19, 19, (uint32_t *)five_e256, NULL },
     // 512
-    { 38, 38, five_e512 },
+    { 38, 38, (uint32_t *)five_e512, NULL },
     // 1024
-    { 75, 75, five_e1024 },
+    { 75, 75, (uint32_t *)five_e1024, NULL },
 };
 
 int smallest_div = 0;
@@ -359,7 +357,7 @@ uint32_t _Anvil_xint_mul_5exp(_Anvil_xint *x, int e)
 
     _Anvil_xint_mul_int(x, small_pow_5[e & 0x7]);
     e >>= 3;
-    int ndx = 0;
+    unsigned ndx = 0;
     if (e)
     {
         _Anvil_xint tmp;
@@ -475,7 +473,7 @@ uint32_t _Anvil_xint_div_small(_Anvil_xint *u, _Anvil_xint *v)
         _Anvil_xint_sub(u, u, v);
         ++quot;
     }
-    return quot;
+    return (uint32_t)quot;
 }
 
 int _Anvil_xint_highest_bit(_Anvil_xint *x)
@@ -603,6 +601,10 @@ uint32_t _Anvil_xint_div_int(_Anvil_xint *quot, _Anvil_xint *x, uint32_t v)
 
 uint32_t _Anvil_xint_lshift(_Anvil_xint *y, _Anvil_xint *x, int numbits)
 {
+    if (x->size == 0)
+    {
+        return 0;
+    }
     uint32_t *X = x->data;
     uint32_t *Y = y->data;
 
@@ -649,6 +651,11 @@ uint32_t _Anvil_xint_lshift(_Anvil_xint *y, _Anvil_xint *x, int numbits)
 
 uint32_t _Anvil_xint_rshift(_Anvil_xint *y, _Anvil_xint *x, int numbits)
 {
+    if (x->size == 0)
+    {
+        return 0;
+    }
+
     uint32_t *X = x->data;
     uint32_t *Y = y->data;
 

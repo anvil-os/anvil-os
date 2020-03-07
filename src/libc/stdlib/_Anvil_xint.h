@@ -6,8 +6,8 @@
 
 struct _Anvil_xint_mempool_s
 {
-    void *pmem;
-    void *p;
+    uint32_t *pmem;
+    uint32_t *p;
     int mempool_size;
 };
 typedef struct _Anvil_xint_mempool_s _Anvil_xint_mempool;
@@ -27,7 +27,7 @@ typedef struct _Anvil_xint_s _Anvil_xint;
 extern "C"
 {
 #endif
-_Anvil_xint_mempool *_Anvil_xint_mempool_init(int nitems, int size);
+int _Anvil_xint_mempool_init(_Anvil_xint_mempool *ppool, int nitems, int size);
 void _Anvil_xint_mempool_free(_Anvil_xint_mempool *ppool);
 void _Anvil_xint_init(_Anvil_xint_mempool *ppool, _Anvil_xint *x, int size);
 void _Anvil_xint_delete(_Anvil_xint *x);
@@ -40,7 +40,7 @@ uint32_t _Anvil_xint_add(_Anvil_xint *x, _Anvil_xint *y);
 uint32_t _Anvil_xint_add_int(_Anvil_xint *x, unsigned n);
 int _Anvil_xint_cmp(_Anvil_xint *x, _Anvil_xint *y);
 int _Anvil_xint_sub(_Anvil_xint *res, _Anvil_xint *x, _Anvil_xint *y);
-uint32_t _Anvil_xint_mul(_Anvil_xint *res, _Anvil_xint *x, _Anvil_xint *y);
+uint32_t _Anvil_xint_mul(_Anvil_xint *res, _Anvil_xint *x, const _Anvil_xint *y);
 uint32_t _Anvil_xint_mul_5exp(_Anvil_xint *x, int e);
 uint32_t _Anvil_xint_div_5exp(_Anvil_xint *x, int e);
 uint32_t _Anvil_xint_div_small(_Anvil_xint *u, _Anvil_xint *v);
