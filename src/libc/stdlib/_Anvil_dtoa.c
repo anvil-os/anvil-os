@@ -17,7 +17,8 @@ char *_Anvil_dragon4(int e, uint64_t f, int p, int cutoff_mode, int cutoff_place
     _Anvil_xint R;
     _Anvil_xint S;
     _Anvil_xint Mplus;
-    _Anvil_xint Mminus;
+    _Anvil_xint _Mminus;
+    _Anvil_xint *pMminus;
     _Anvil_xint TEMP;
 
     uint32_t U;
@@ -173,10 +174,17 @@ char *_Anvil_dragon4(int e, uint64_t f, int p, int cutoff_mode, int cutoff_place
     _Anvil_xint_lshift(&Mplus, &Mplus, Mp2e);
     _Anvil_xint_mul_5exp(&Mplus, Mp5e);
 
-    _Anvil_xint_init(&mempool, &Mminus, xint_size);
-    _Anvil_xint_assign_64(&Mminus, 1);
-    _Anvil_xint_lshift(&Mminus, &Mminus, Mm2e);
-    _Anvil_xint_mul_5exp(&Mminus, Mm5e);
+    if (unequal_gap)
+    {
+        _Anvil_xint_init(&mempool, &_Mminus, xint_size);
+        _Anvil_xint_assign_64(&_Mminus, 1);
+        _Anvil_xint_lshift(&_Mminus, &_Mminus, Mm2e);
+        _Anvil_xint_mul_5exp(&_Mminus, Mm5e);
+    }
+    else
+    {
+        pMminus = &Mplus;
+    }
 
     // Let TEMP = 2 * R + M+
     _Anvil_xint_init(&mempool, &TEMP, xint_size);
@@ -273,17 +281,20 @@ char *_Anvil_dragon4(int e, uint64_t f, int p, int cutoff_mode, int cutoff_place
                         ++cc5;
                     }
                     // If Y is greater than M use it
-                    if (_Anvil_xint_cmp(&TEMP, &Mminus) > 0)
+                    if (_Anvil_xint_cmp(&TEMP, &Mplus) > 0)
                     {
-                        _Anvil_xint_assign(&Mminus, &TEMP);
-                        Mm2e = S2e + a;
-                        Mm5e = S5e + a;
-                        if (_Anvil_xint_cmp(&TEMP, &Mplus) > 0)
+                        _Anvil_xint_assign(&Mplus, &TEMP);
+                        Mp2e = S2e + a;
+                        Mp5e = S5e + a;
+                        ++cc6;
+                    }
+                    if (pMminus != &Mplus)
+                    {
+                        if (_Anvil_xint_cmp(&TEMP, pMminus) > 0)
                         {
-                            _Anvil_xint_assign(&Mplus, &TEMP);
-                            Mp2e = S2e + a;
-                            Mp5e = S5e + a;
-                            ++cc6;
+                            _Anvil_xint_assign(pMminus, &TEMP);
+                            Mm2e = S2e + a;
+                            Mm5e = S5e + a;
                         }
                     }
                     if (_Anvil_xint_cmp(&TEMP, &Mplus) == 0)
@@ -377,7 +388,7 @@ char *_Anvil_dragon4(int e, uint64_t f, int p, int cutoff_mode, int cutoff_place
 
     // The original Dragon4 algorithm doesn't have this test but it's
     // certainly needed
-    if (_Anvil_xint_cmp(&R, &Mminus) >= 0)
+    if (_Anvil_xint_cmp(&R, pMminus) >= 0)
     {
         // The 'div_small' algorithm requires the denominator to have the top
         // bit in its top word set. Scale every thing to make this true
@@ -385,7 +396,10 @@ char *_Anvil_dragon4(int e, uint64_t f, int p, int cutoff_mode, int cutoff_place
         _Anvil_xint_lshift(&R, &R, 31-hbit);
         _Anvil_xint_lshift(&S, &S, 31-hbit);
         _Anvil_xint_lshift(&Mplus, &Mplus, 31-hbit);
-        _Anvil_xint_lshift(&Mminus, &Mminus, 31-hbit);
+        if (pMminus != &Mplus)
+        {
+            _Anvil_xint_lshift(pMminus, pMminus, 31-hbit);
+        }
 
         int low;
         int high;
@@ -399,17 +413,20 @@ char *_Anvil_dragon4(int e, uint64_t f, int p, int cutoff_mode, int cutoff_place
             // U = floor ( R * 10 ) / S
             // R = ( R * 10 ) mod S
             _Anvil_xint_mul_int(&R, 10);
-            
-            U = _Anvil_xint_div_small(&R, &S);
 
+            U = _Anvil_xint_div_small(&R, &S);
+            
             // M+ = M+ * 10
             _Anvil_xint_mul_int(&Mplus, 10);
             
             // M- = M- * 10
-            _Anvil_xint_mul_int(&Mminus, 10);
+            if (pMminus != &Mplus)
+            {
+                _Anvil_xint_mul_int(pMminus, 10);
+            }
             
             // low = 2 * R < M-
-            low = _Anvil_xint_cmp(&R, &Mminus) == -1;
+            low = _Anvil_xint_cmp(&R, pMminus) == -1;
             
             // high = 2 * R + M+ > 2 * S
             _Anvil_xint_assign(&TEMP, &R);
@@ -435,8 +452,8 @@ char *_Anvil_dragon4(int e, uint64_t f, int p, int cutoff_mode, int cutoff_place
             }
             if (got_non_zero)
             {
-            *pret_str++ = U + 0x30;
-        }
+                *pret_str++ = U + 0x30;
+            }
         }
 
         // The loop is done so output the final digit
@@ -470,7 +487,10 @@ char *_Anvil_dragon4(int e, uint64_t f, int p, int cutoff_mode, int cutoff_place
     _Anvil_xint_delete(&R);
     _Anvil_xint_delete(&S);
     _Anvil_xint_delete(&Mplus);
-    _Anvil_xint_delete(&Mminus);
+    if (pMminus != &Mplus)
+    {
+        _Anvil_xint_delete(pMminus);
+    }
     _Anvil_xint_delete(&TEMP);
     _Anvil_xint_mempool_free(&mempool);
 
