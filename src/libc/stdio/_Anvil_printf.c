@@ -625,77 +625,71 @@ static int debug_print_num(struct printf_ctx *ctx, unsigned long long val, int r
     return ctx->nputs(ctx->arg, p_num, num_len);
 }
 
+extern char *_Anvil_dtoa(double dd, int mode, int ndigits, int *decpt, int *sign, char **rve);
+
 static int print_double(struct printf_ctx *ctx)
 {
-    union
-    {
-        unsigned long long uint;
-        double dbl;
-    } value;
-
+    double dval = va_arg(ctx->ap, double);
+    int decpt;
     int sign;
-    int exp2;
-    int exp10;
-    unsigned long long mant;
-    char buf[50];
-    char *p_num;
-    int num_len;
-    //unsigned long long val;
-    int scale_val;
-    double cmp_val = 10.0;
+    char *str = _Anvil_dtoa(dval, 1, 6, &decpt, &sign, NULL);
+    char *p = str;
 
-    value.dbl = va_arg(ctx->ap, double);
-    sign = value.uint >> 63;
-    exp2 = ((value.uint >> 52) & 0x7ff) - 1023;
-    mant = value.uint & 0xfffffffffffff;
-
-    scale_val = 1;
-    while (1)
+    if (ctx->flags & FLAG_FIXED)
     {
-        if (value.dbl < cmp_val)
+        if (decpt > 0)
         {
-            break;
+            // If decpt is positive, we have to print decpt chars before the decimal
+            // point
+            for (int i=0; i<decpt; ++i)
+            {
+                if (*p)
+                {
+                    ctx->nputs(ctx->arg, p, 1);
+                    ++p;
+                }
+                else
+                {
+                    ctx->nputs(ctx->arg, "0", 1);
+                }
+            }
+            ctx->nputs(ctx->arg, ".", 1);
         }
-        cmp_val *= 10;
-        ++scale_val;
+        else
+        {
+            // If decpt is negative, we have to print decpt 0's after the decimal
+            // point
+            ctx->nputs(ctx->arg, "0", 1);
+            ctx->nputs(ctx->arg, ".", 1);
+            for (int i=0; i<-decpt; ++i)
+            {
+                ctx->nputs(ctx->arg, "0", 1);
+            }
+        }
+        // Then print all the remaining chars, if any
+        while (*p)
+        {
+            ctx->nputs(ctx->arg, p, 1);
+            ++p;
+        }
     }
-    cmp_val /= 10;
-
-    ctx->chars_printed += ctx->nputs(ctx->arg, "|", 1);
-    debug_print_num(ctx, sign, 10);
-    ctx->chars_printed += ctx->nputs(ctx->arg, "|", 1);
-    debug_print_num(ctx, exp2, 10);
-    ctx->chars_printed += ctx->nputs(ctx->arg, "|", 1);
-    debug_print_num(ctx, mant, 2);
-    ctx->chars_printed += ctx->nputs(ctx->arg, "|", 1);
-    debug_print_num(ctx, scale_val, 10);
-    ctx->chars_printed += ctx->nputs(ctx->arg, "|", 1);
-    debug_print_num(ctx, (unsigned long long)cmp_val, 10);
-    ctx->chars_printed += ctx->nputs(ctx->arg, "|", 1);
-
-    mant |= 0x10000000000000;
-    exp2 -= 52;
-
-    while (exp2 > 0)
+    else if (ctx->flags & FLAG_EXP)
     {
-        mant *= 2;
-        --exp2;
-    }
-    while (exp2 < 0)
-    {
-        mant /= 2;
-        ++exp2;
+        ctx->chars_printed += ctx->nputs(ctx->arg, "--------------------\n", 21);
+        ctx->chars_printed += ctx->nputs(ctx->arg, p, strlen(p));
+        ctx->chars_printed += ctx->nputs(ctx->arg, " ", 1);
+        if (decpt < 0)
+        {
+            ctx->chars_printed += ctx->nputs(ctx->arg, "-", 1);
+            debug_print_num(ctx, -decpt, 10);
+        }
+        else
+        {
+            debug_print_num(ctx, decpt, 10);
+        }
+        //ctx->chars_printed += ctx->nputs(ctx->arg, "\n", 1);
     }
 
-    ctx->chars_printed += ctx->nputs(ctx->arg, "\n", 1);
-
-    ctx->chars_printed += ctx->nputs(ctx->arg, "|", 1);
-    debug_print_num(ctx, sign, 10);
-    ctx->chars_printed += ctx->nputs(ctx->arg, "|", 1);
-    debug_print_num(ctx, exp2, 10);
-    ctx->chars_printed += ctx->nputs(ctx->arg, "|", 1);
-    debug_print_num(ctx, mant, 10);
-    ctx->chars_printed += ctx->nputs(ctx->arg, "|", 1);
 
     return 0;
 }

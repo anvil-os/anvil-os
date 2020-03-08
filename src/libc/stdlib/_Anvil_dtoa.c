@@ -5,7 +5,7 @@
 #include "_Anvil_double.h"
 #include "_Anvil_xint.h"
 
-char ret_str[100];
+char ret_str[500];
 
 int cc0, cc1, cc2, cc3, cc4, cc5, cc6;
 
