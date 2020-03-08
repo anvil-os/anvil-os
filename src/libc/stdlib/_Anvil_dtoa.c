@@ -389,6 +389,7 @@ char *_Anvil_dragon4(int e, uint64_t f, int p, int cutoff_mode, int cutoff_place
 
         int low;
         int high;
+        int got_non_zero = 0;
 
         while (1)
         {
@@ -428,7 +429,14 @@ char *_Anvil_dragon4(int e, uint64_t f, int p, int cutoff_mode, int cutoff_place
             {
                 break;
             }
+            if (U)
+            {
+                got_non_zero = 1;
+            }
+            if (got_non_zero)
+            {
             *pret_str++ = U + 0x30;
+        }
         }
 
         // The loop is done so output the final digit
