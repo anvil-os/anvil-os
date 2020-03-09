@@ -450,17 +450,15 @@ uint32_t _Anvil_xint_div_small(_Anvil_xint *u, _Anvil_xint *v)
         _Anvil_xint_resize(v, u->size);
     }
 
-    if (quot == 0)
+    if (quot)
     {
-        return 0;
-    }
-    
-    int32_t k = 0;
-    for (int i=0; i<u->size; ++i)
-    {
-        int64_t prod_diff = u->data[i] - quot * v->data[i] + k;
-        u->data[i] = prod_diff & 0xffffffff;
-        k = prod_diff >> 32;
+        int32_t k = 0;
+        for (int i=0; i<u->size; ++i)
+        {
+            int64_t prod_diff = u->data[i] - quot * v->data[i] + k;
+            u->data[i] = prod_diff & 0xffffffff;
+            k = prod_diff >> 32;
+        }
     }
 
     trim_zeroes(u);
