@@ -632,11 +632,16 @@ static int print_double(struct printf_ctx *ctx)
     double dval = va_arg(ctx->ap, double);
     int decpt;
     int sign;
-    char *str = _Anvil_dtoa(dval, 1, 6, &decpt, &sign, NULL);
-    char *p = str;
+
+    if (ctx->precision == INT_MAX)
+    {
+        ctx->precision = 6;
+    }
 
     if (ctx->flags & FLAG_FIXED)
     {
+        char *str = _Anvil_dtoa(dval, 3, ctx->precision, &decpt, &sign, NULL);
+        char *p = str;
         if (decpt > 0)
         {
             // If decpt is positive, we have to print decpt chars before the decimal
@@ -675,21 +680,33 @@ static int print_double(struct printf_ctx *ctx)
     }
     else if (ctx->flags & FLAG_EXP)
     {
-        ctx->chars_printed += ctx->nputs(ctx->arg, "--------------------\n", 21);
+        char *str = _Anvil_dtoa(dval, 2, ctx->precision, &decpt, &sign, NULL);
+        char *p = str;
+//        debug_print_num(ctx, decpt, 10);
+//        debug_print_num(ctx, ctx->precision, 10);
+        ctx->chars_printed += ctx->nputs(ctx->arg, p++, 1);
+        ctx->chars_printed += ctx->nputs(ctx->arg, ".", 1);
         ctx->chars_printed += ctx->nputs(ctx->arg, p, strlen(p));
-        ctx->chars_printed += ctx->nputs(ctx->arg, " ", 1);
+        ctx->chars_printed += ctx->nputs(ctx->arg, "e", 1);
+        --decpt;
         if (decpt < 0)
         {
             ctx->chars_printed += ctx->nputs(ctx->arg, "-", 1);
-            debug_print_num(ctx, -decpt, 10);
+            decpt = -decpt;
         }
-        else
+        char buf[50];
+        char *p_num;
+        int num_len;
+        p_num = &buf[50];
+        num_len = 0;
+        int val = decpt;
+        while (val)
         {
-            debug_print_num(ctx, decpt, 10);
+            *--p_num = lower_digit[val % 10];
+            val /= 10;
+            ++num_len;
         }
-        //ctx->chars_printed += ctx->nputs(ctx->arg, "\n", 1);
+        ctx->nputs(ctx->arg, p_num, num_len);
     }
-
-
     return 0;
 }

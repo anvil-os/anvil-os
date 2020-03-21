@@ -5,7 +5,7 @@
 #include "_Anvil_double.h"
 #include "_Anvil_xint.h"
 
-char ret_str[500];
+char ret_str[300];
 
 int cc0, cc1, cc2, cc3, cc4, cc5, cc6;
 
@@ -18,7 +18,7 @@ char *_Anvil_dragon4(int e, uint64_t f, int p, int cutoff_mode, int cutoff_place
     _Anvil_xint S;
     _Anvil_xint Mplus;
     _Anvil_xint _Mminus;
-    _Anvil_xint *pMminus;
+    _Anvil_xint *pMminus = NULL;
     _Anvil_xint TEMP;
 
     uint32_t U;
@@ -196,6 +196,8 @@ char *_Anvil_dragon4(int e, uint64_t f, int p, int cutoff_mode, int cutoff_place
     _Anvil_xint_lshift(&S, &S, 1);
     ///////////////////////////////////////
 
+    int saved_k = k;
+
     int loop = 0;
     do
     {
@@ -227,7 +229,7 @@ char *_Anvil_dragon4(int e, uint64_t f, int p, int cutoff_mode, int cutoff_place
                 {
                     a = -1;
                 }
-                if (cutoff_mode == e_absolute && log10 < cutoff_place_parm)
+                if (cutoff_mode == e_absolute && saved_k < cutoff_place_parm)
                 {
                     k += a;
                     a = 0;
@@ -297,6 +299,12 @@ char *_Anvil_dragon4(int e, uint64_t f, int p, int cutoff_mode, int cutoff_place
                             Mm5e = S5e + a;
                         }
                     }
+                    else
+                    {
+                        Mm2e = Mp2e;
+                        Mm5e = Mp5e;
+                    }
+
                     if (_Anvil_xint_cmp(&TEMP, &Mplus) == 0)
                     {
                         roundup_flag = 1;
@@ -307,19 +315,19 @@ char *_Anvil_dragon4(int e, uint64_t f, int p, int cutoff_mode, int cutoff_place
                 // below
                 _Anvil_xint_lshift(&TEMP, &R, 1);
                 _Anvil_xint_add(&TEMP, &Mplus);
+                loop = 0;
+                if (_Anvil_xint_cmp(&TEMP, &S) >= 0)
+                {
+                    loop = 1;
+                    //printf("We're looping\n");
+                }
                 break;
             }
-        }
-        loop = 0;
-        if (_Anvil_xint_cmp(&TEMP, &S) >= 0)
-        {
-            loop = 1;
-            //printf("We're looping\n");
         }
     } while (loop);
 
     ++S2e;
-#if 0
+#if 1
     // Check all our variables are correct
     _Anvil_xint_assign_64(&TEMP, f);
     _Anvil_xint_lshift(&TEMP, &TEMP, R2e);
@@ -364,11 +372,11 @@ char *_Anvil_dragon4(int e, uint64_t f, int p, int cutoff_mode, int cutoff_place
         _Anvil_xint_lshift(&TEMP, &TEMP, Mm2e);
         _Anvil_xint_mul_5exp(&TEMP, Mm5e);
     }
-    if (_Anvil_xint_cmp(&TEMP, &Mminus) != 0)
+    if (_Anvil_xint_cmp(&TEMP, pMminus) != 0)
     {
         _Anvil_xint_print("S   ", &S);
         _Anvil_xint_print("TEMP", &TEMP);
-        _Anvil_xint_print("M-  ", &Mminus);
+        _Anvil_xint_print("M-  ", pMminus);
         printf("M- wrong\n");
     }
 #endif
@@ -522,6 +530,6 @@ char *_Anvil_dtoa(double dd, int mode, int ndigits, int *decpt, int *sign, char 
 
     char *ret = _Anvil_dragon4(e, f, p, cutoff_mode, -cutoff_place, decpt);
     *decpt += strlen(ret);
-
+    
     return ret;
 }
