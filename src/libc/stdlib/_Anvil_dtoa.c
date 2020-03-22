@@ -16,19 +16,13 @@ char *_Anvil_dragon4(int e, uint64_t f, int p, int cutoff_mode, int cutoff_place
     _Anvil_xint_mempool mempool;
     _Anvil_xint R;
     _Anvil_xint S;
-    _Anvil_xint Mplus;
-    _Anvil_xint _Mminus;
-    _Anvil_xint *pMminus = NULL;
     _Anvil_xint TEMP;
 
     uint32_t U;
-    int R5e=0, S5e=0, Mp5e=0, Mm5e=0;
-    int R2e=0, S2e=0, Mp2e=0, Mm2e=0;
+    int R5e=0, S5e=0;
+    int R2e=0, S2e=0;
     int cutoff_place = cutoff_place_parm;
 
-    int roundup_flag = 0;
-    int unequal_gap = 0;
-    
     char *pret_str = ret_str;
     
     // NOTE: Instead of actually modifying any of the Xints we record what
@@ -48,18 +42,6 @@ char *_Anvil_dragon4(int e, uint64_t f, int p, int cutoff_mode, int cutoff_place
     else
     {
         S2e = p - e;
-    }
-
-    // FIXUP PROCEDURE
-    // Account for unequal gaps
-    if (f == (1U << (p-1)))
-    {
-        // M+ = M+ << 1
-        // R = R << 1
-        // S = S << 1
-        unequal_gap = 1;
-        ++R2e;
-        ++S2e;
     }
 
     // Dragon4 has a pair of loops, one executed while R < ceil(S/10)
@@ -123,9 +105,6 @@ char *_Anvil_dragon4(int e, uint64_t f, int p, int cutoff_mode, int cutoff_place
         S5e = 0;
     }
 
-    Mp5e = Mm5e = R5e;
-    Mp2e = Mm2e = R2e;
-
     // while (R < ceil(S/10))
     // {
     //    --k;
@@ -157,8 +136,6 @@ char *_Anvil_dragon4(int e, uint64_t f, int p, int cutoff_mode, int cutoff_place
         --k;
         _Anvil_xint_mul_int(&R, 10);
         ++R5e; ++R2e;
-        ++Mm5e; ++Mm2e;
-        ++Mp5e; ++Mp2e;
     }
 
     _Anvil_xint_mul_int(&S, 10);
@@ -169,27 +146,9 @@ char *_Anvil_dragon4(int e, uint64_t f, int p, int cutoff_mode, int cutoff_place
     // In the next part of the algorithm we need to compare
     // 2*R + M+ with 2*S
 
-    _Anvil_xint_init(&mempool, &Mplus, xint_size);
-    _Anvil_xint_assign_64(&Mplus, 1);
-    _Anvil_xint_lshift(&Mplus, &Mplus, Mp2e);
-    _Anvil_xint_mul_5exp(&Mplus, Mp5e);
-
-    if (unequal_gap)
-    {
-        _Anvil_xint_init(&mempool, &_Mminus, xint_size);
-        _Anvil_xint_assign_64(&_Mminus, 1);
-        _Anvil_xint_lshift(&_Mminus, &_Mminus, Mm2e);
-        _Anvil_xint_mul_5exp(&_Mminus, Mm5e);
-    }
-    else
-    {
-        pMminus = &Mplus;
-    }
-
     // Let TEMP = 2 * R + M+
     _Anvil_xint_init(&mempool, &TEMP, xint_size);
     _Anvil_xint_lshift(&TEMP, &R, 1);
-    _Anvil_xint_add(&TEMP, &Mplus);
 
     ///////////////////////////////////////
     // Temporarily set S to S * 2
@@ -215,9 +174,6 @@ char *_Anvil_dragon4(int e, uint64_t f, int p, int cutoff_mode, int cutoff_place
 
         switch (cutoff_mode)
         {
-            case e_normal:
-                cutoff_place = k;
-                break;
             case e_relative:
                 cutoff_place = cutoff_place_parm + k;
                 // no break
@@ -233,93 +189,6 @@ char *_Anvil_dragon4(int e, uint64_t f, int p, int cutoff_mode, int cutoff_place
                 {
                     k += a;
                     a = 0;
-                }
-
-                // Let's use TEMP for Y
-                // Set Y to S (note S is currently 2 * S)
-                _Anvil_xint_rshift(&TEMP, &S, 1);
-
-                //printf("K=%d P=%d C=%d A=%d\n", k, cutoff_place_parm, cutoff_place, a);
-                // We want Y = ceil(S x 10^a) = ceil(2^S2e * 5^S5e x 2^a * 5^e)
-                int Y5e = S5e + a;
-                int Y2e = S2e + a;
-
-                // Y = 5^a5 * 2^a2
-                // M = 5^M5e * 2^M2e
-                // log2(5) = 2.321928094887362
-                int yy = Y2e + Y5e * 23219 / 10000;
-                int mm = Mp2e + Mp5e * 23219 / 10000;
-
-                if (yy > mm)
-                {
-                    if (a > 0)
-                    {
-                        // Y = S * 10 ^ a
-                        _Anvil_xint_mul_5exp(&TEMP, a);
-                        _Anvil_xint_lshift(&TEMP, &TEMP, a);
-                        ++cc4;
-                    }
-                    else if (a < 0)
-                    {
-                        // Y = ceil(S / (10 ^ -a))
-                        _Anvil_xint_assign_64(&TEMP, 1);
-                        if (Y5e > 0 || Y2e > 0)
-                        {
-                            if (Y5e > Y2e)
-                            {
-                                _Anvil_xint_mul_5exp(&TEMP, Y5e);
-                                _Anvil_xint_lshift(&TEMP, &TEMP, Y2e);
-                            }
-                            else
-                            {
-                                _Anvil_xint_lshift(&TEMP, &TEMP, Y2e);
-                                _Anvil_xint_mul_5exp(&TEMP, Y5e);
-                            }
-                        }
-                        if (_Anvil_xint_is_zero(&TEMP))
-                        {
-                            _Anvil_xint_assign_64(&TEMP, 1);
-                        }
-                        ++cc5;
-                    }
-                    // If Y is greater than M use it
-                    if (_Anvil_xint_cmp(&TEMP, &Mplus) > 0)
-                    {
-                        _Anvil_xint_assign(&Mplus, &TEMP);
-                        Mp2e = S2e + a;
-                        Mp5e = S5e + a;
-                        ++cc6;
-                    }
-                    if (pMminus != &Mplus)
-                    {
-                        if (_Anvil_xint_cmp(&TEMP, pMminus) > 0)
-                        {
-                            _Anvil_xint_assign(pMminus, &TEMP);
-                            Mm2e = S2e + a;
-                            Mm5e = S5e + a;
-                        }
-                    }
-                    else
-                    {
-                        Mm2e = Mp2e;
-                        Mm5e = Mp5e;
-                    }
-
-                    if (_Anvil_xint_cmp(&TEMP, &Mplus) == 0)
-                    {
-                        roundup_flag = 1;
-                    }
-                }
-//                printf("4: Mp2e=%d Mp5e=%d Mm2e=%d Mm5e=%d\n", Mp2e, Mp5e, Mm2e, Mm5e);
-                // We need to set TEMP back to (2 * R + M+) here for the test
-                // below
-                _Anvil_xint_lshift(&TEMP, &R, 1);
-                _Anvil_xint_add(&TEMP, &Mplus);
-                loop = 0;
-                if (_Anvil_xint_cmp(&TEMP, &S) >= 0)
-                {
-                    loop = 1;
-                    //printf("We're looping\n");
                 }
                 break;
             }
@@ -343,42 +212,6 @@ char *_Anvil_dragon4(int e, uint64_t f, int p, int cutoff_mode, int cutoff_place
     {
         printf("S wrong\n");
     }
-    _Anvil_xint_assign_64(&TEMP, 1);
-    if (Mp5e > Mp2e)
-    {
-        _Anvil_xint_mul_5exp(&TEMP, Mp5e);
-        _Anvil_xint_lshift(&TEMP, &TEMP, Mp2e);
-    }
-    else
-    {
-        _Anvil_xint_lshift(&TEMP, &TEMP, Mp2e);
-        _Anvil_xint_mul_5exp(&TEMP, Mp5e);
-    }
-    if (_Anvil_xint_cmp(&TEMP, &Mplus) != 0)
-    {
-        _Anvil_xint_print("S   ", &S);
-        _Anvil_xint_print("TEMP", &TEMP);
-        _Anvil_xint_print("M+  ", &Mplus);
-        printf("M+ wrong\n");
-    }
-    _Anvil_xint_assign_64(&TEMP, 1);
-    if (Mm5e > Mm2e)
-    {
-        _Anvil_xint_mul_5exp(&TEMP, Mm5e);
-        _Anvil_xint_lshift(&TEMP, &TEMP, Mm2e);
-    }
-    else
-    {
-        _Anvil_xint_lshift(&TEMP, &TEMP, Mm2e);
-        _Anvil_xint_mul_5exp(&TEMP, Mm5e);
-    }
-    if (_Anvil_xint_cmp(&TEMP, pMminus) != 0)
-    {
-        _Anvil_xint_print("S   ", &S);
-        _Anvil_xint_print("TEMP", &TEMP);
-        _Anvil_xint_print("M-  ", pMminus);
-        printf("M- wrong\n");
-    }
 #endif
 
     if (R2e && S2e)
@@ -396,21 +229,14 @@ char *_Anvil_dragon4(int e, uint64_t f, int p, int cutoff_mode, int cutoff_place
 
     // The original Dragon4 algorithm doesn't have this test but it's
     // certainly needed
-    if (_Anvil_xint_cmp(&R, pMminus) >= 0)
+    if (1)
     {
         // The 'div_small' algorithm requires the denominator to have the top
         // bit in its top word set. Scale every thing to make this true
         int hbit = _Anvil_xint_highest_bit(&S) % 32;
         _Anvil_xint_lshift(&R, &R, 31-hbit);
         _Anvil_xint_lshift(&S, &S, 31-hbit);
-        _Anvil_xint_lshift(&Mplus, &Mplus, 31-hbit);
-        if (pMminus != &Mplus)
-        {
-            _Anvil_xint_lshift(pMminus, pMminus, 31-hbit);
-        }
 
-        int low;
-        int high;
         int got_non_zero = 0;
 
         while (1)
@@ -424,33 +250,7 @@ char *_Anvil_dragon4(int e, uint64_t f, int p, int cutoff_mode, int cutoff_place
 
             U = _Anvil_xint_div_small(&R, &S);
             
-            // M+ = M+ * 10
-            _Anvil_xint_mul_int(&Mplus, 10);
-            
-            // M- = M- * 10
-            if (pMminus != &Mplus)
-            {
-                _Anvil_xint_mul_int(pMminus, 10);
-            }
-            
-            // low = 2 * R < M-
-            low = _Anvil_xint_cmp(&R, pMminus) == -1;
-            
-            // high = 2 * R + M+ > 2 * S
-            _Anvil_xint_assign(&TEMP, &R);
-            _Anvil_xint_add(&TEMP, &Mplus);
-
-            // According to the Dragon logic this should be >= 1 but >= 0 works - this is the 10^23 problem
-            if (roundup_flag)
-            {
-                high = _Anvil_xint_cmp(&TEMP, &S) >= 0;
-            }
-            else
-            {
-                high = _Anvil_xint_cmp(&TEMP, &S) > 0;
-            }
-
-            if (low || high || (k == cutoff_place))
+            if (k == cutoff_place)
             {
                 break;
             }
@@ -465,27 +265,16 @@ char *_Anvil_dragon4(int e, uint64_t f, int p, int cutoff_mode, int cutoff_place
         }
 
         // The loop is done so output the final digit
-        if (low && !high)
+        // Scale R up by 2
+        _Anvil_xint_lshift(&R, &R, 1);
+        int cmp = _Anvil_xint_cmp(&R, &S);
+        if (cmp <= 0)
         {
             *pret_str++ = U + 0x30;
         }
-        else if (!low && high)
-        {
-            *pret_str++ = U + 1 + 0x30;
-        }
         else
         {
-            // Scale R up by 2
-            _Anvil_xint_lshift(&R, &R, 1);
-            int cmp = _Anvil_xint_cmp(&R, &S);
-            if (cmp <= 0)
-            {
-                *pret_str++ = U + 0x30;
-            }
-            else
-            {
-                *pret_str++ = U + 1 + 0x30;
-            }
+            *pret_str++ = U + 1 + 0x30;
         }
     }
 
@@ -494,11 +283,6 @@ char *_Anvil_dragon4(int e, uint64_t f, int p, int cutoff_mode, int cutoff_place
 
     _Anvil_xint_delete(&R);
     _Anvil_xint_delete(&S);
-    _Anvil_xint_delete(&Mplus);
-    if (pMminus != &Mplus)
-    {
-        _Anvil_xint_delete(pMminus);
-    }
     _Anvil_xint_delete(&TEMP);
     _Anvil_xint_mempool_free(&mempool);
 

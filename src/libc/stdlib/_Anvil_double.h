@@ -6,9 +6,8 @@
 
 enum
 {
-    e_normal,
-    e_absolute,
     e_relative,
+    e_absolute,
 };
 
 union double_bits
